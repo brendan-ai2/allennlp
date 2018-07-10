@@ -1,13 +1,16 @@
 # pylint: disable=no-self-use,invalid-name
 import pytest
 
+from typing import cast
+
 from allennlp.data.dataset_readers import Event2MindDatasetReader
 from allennlp.common.util import ensure_list
 from allennlp.common.testing import AllenNlpTestCase
+from allennlp.data.fields import TextField
 from allennlp.data.instance import Instance
 
 def get_text(instance: Instance, key: str):
-    return [t.text for t in instance.fields[key].tokens]
+    return [t.text for t in cast(TextField, instance.fields[key]).tokens]
 
 def get_source(instance: Instance):
     return get_text(instance, "source_tokens")

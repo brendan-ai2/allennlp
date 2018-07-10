@@ -4,8 +4,9 @@ import numpy
 from overrides import overrides
 
 import torch
-from torch.nn.modules.rnn import LSTMCell
+from torch.nn.modules.rnn import GRUCell, LSTMCell
 from torch.nn.modules.linear import Linear
+from torch import nn
 import torch.nn.functional as F
 
 from allennlp.common import Params
@@ -83,6 +84,9 @@ class SimpleSeq2Seq(Model):
         self._attention_function = attention_function
         self._scheduled_sampling_ratio = scheduled_sampling_ratio
         # We need the start symbol to provide as the input at the first timestep of decoding, and
+        self._embedding_dropout = nn.Dropout(0.8)
+        #self._hidden_dropout = nn.Dropout(0.5)
+
         # end symbol as a way to indicate the end of the decoded sequence.
         self._start_index = self.vocab.get_token_index(START_SYMBOL, self._target_namespace)
         self._end_index = self.vocab.get_token_index(END_SYMBOL, self._target_namespace)
@@ -101,7 +105,9 @@ class SimpleSeq2Seq(Model):
         else:
             self._decoder_input_dim = target_embedding_dim
         # TODO (pradeep): Do not hardcode decoder cell type.
-        self._decoder_cell = LSTMCell(self._decoder_input_dim, self._decoder_output_dim)
+        #self._decoder_cell = LSTMCell(self._decoder_input_dim, self._decoder_output_dim)
+        # TODO (brendanr): Turn this back into LSTMCell.
+        self._decoder_cell = GRUCell(self._decoder_input_dim, self._decoder_output_dim)
         self._output_projection_layer = Linear(self._decoder_output_dim, num_classes)
 
     @overrides
@@ -122,6 +128,7 @@ class SimpleSeq2Seq(Model):
            target tokens are also represented as a ``TextField``.
         """
         # (batch_size, input_sequence_length, encoder_output_dim)
+        #embedded_input = self._embedding_dropout(self._source_embedder(source_tokens))
         embedded_input = self._source_embedder(source_tokens)
         batch_size, _, _ = embedded_input.size()
         source_mask = get_text_field_mask(source_tokens)
@@ -136,7 +143,6 @@ class SimpleSeq2Seq(Model):
         else:
             num_decoding_steps = self._max_decoding_steps
         decoder_hidden = final_encoder_output
-        decoder_context = encoder_outputs.new_zeros(batch_size, self._decoder_output_dim)
         last_predictions = None
         step_logits = []
         step_probabilities = []
@@ -153,8 +159,7 @@ class SimpleSeq2Seq(Model):
                     input_choices = last_predictions
             decoder_input = self._prepare_decode_step_input(input_choices, decoder_hidden,
                                                             encoder_outputs, source_mask)
-            decoder_hidden, decoder_context = self._decoder_cell(decoder_input,
-                                                                 (decoder_hidden, decoder_context))
+            decoder_hidden = self._decoder_cell(decoder_input, decoder_hidden)
             # (batch_size, num_classes)
             output_projections = self._output_projection_layer(decoder_hidden)
             # list of (batch_size, 1, num_classes)
