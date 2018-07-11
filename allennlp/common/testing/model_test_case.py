@@ -6,7 +6,7 @@ import torch
 from allennlp.commands.train import train_model_from_file
 from allennlp.common import Params
 from allennlp.common.testing.test_case import AllenNlpTestCase
-from allennlp.data import DataIterator, DatasetReader, Vocabulary, RegistrableVocabulary
+from allennlp.data import DataIterator, DatasetReader, Vocabulary
 from allennlp.data.dataset import Batch
 from allennlp.models import Model, load_archive
 
@@ -27,12 +27,12 @@ class ModelTestCase(AllenNlpTestCase):
         # "non_padded_namespaces", "min_count" etc. can be set if needed.
         if 'vocabulary' in params:
             vocab_params = params['vocabulary']
-            vocab = RegistrableVocabulary.from_params(params=vocab_params, instances=instances)
+            vocab = Vocabulary.from_params(params=vocab_params, instances=instances)
         else:
             vocab = Vocabulary.from_instances(instances)
         self.vocab = vocab
         self.instances = instances
-        self.model = Model.from_params(self.vocab, params['model'])
+        self.model = Model.from_params(vocab=self.vocab, params=params['model'])
 
         # TODO(joelgrus) get rid of these
         # (a lot of the model tests use them, so they'll have to be changed)

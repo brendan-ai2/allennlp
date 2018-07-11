@@ -6,6 +6,7 @@ Typically you might create a configuration file specifying the model and
 training parameters and then use :mod:`~allennlp.commands.train`
 rather than instantiating a ``Trainer`` yourself.
 """
+# pylint: disable=too-many-lines
 
 import logging
 import os
@@ -164,6 +165,7 @@ class Trainer:
                  validation_dataset: Optional[Iterable[Instance]] = None,
                  patience: Optional[int] = None,
                  validation_metric: str = "-loss",
+                 validation_iterator: DataIterator = None,
                  num_epochs: int = 20,
                  serialization_dir: Optional[str] = None,
                  num_serialized_models_to_keep: int = 20,
@@ -200,6 +202,9 @@ class Trainer:
             and whether to serialize an ``is_best`` model each epoch. The metric name
             must be prepended with either "+" or "-", which specifies whether the metric
             is an increasing or decreasing function.
+        validation_iterator : ``DataIterator``, optional (default=None)
+            An iterator to use for the validation set.  If ``None``, then
+            use the training `iterator`.
         num_epochs : int, optional (default = 20)
             Number of training epochs.
         serialization_dir : str, optional (default=None)
@@ -252,6 +257,7 @@ class Trainer:
         """
         self._model = model
         self._iterator = iterator
+        self._validation_iterator = validation_iterator
         self._optimizer = optimizer
         self._train_data = train_dataset
         self._validation_data = validation_dataset
@@ -644,10 +650,15 @@ class Trainer:
 
         self._model.eval()
 
-        val_generator = self._iterator(self._validation_data,
-                                       num_epochs=1,
-                                       cuda_device=self._iterator_device)
-        num_validation_batches = self._iterator.get_num_batches(self._validation_data)
+        if self._validation_iterator is not None:
+            val_iterator = self._validation_iterator
+        else:
+            val_iterator = self._iterator
+
+        val_generator = val_iterator(self._validation_data,
+                                     num_epochs=1,
+                                     cuda_device=self._iterator_device)
+        num_validation_batches = val_iterator.get_num_batches(self._validation_data)
         val_generator_tqdm = Tqdm.tqdm(val_generator,
                                        total=num_validation_batches)
         batches_this_epoch = 0
@@ -936,6 +947,7 @@ class Trainer:
 
         return epoch_to_return, val_metric_per_epoch
 
+    # Requires custom from_params.
     @classmethod
     def from_params(cls,
                     model: Model,
@@ -943,7 +955,8 @@ class Trainer:
                     iterator: DataIterator,
                     train_data: Iterable[Instance],
                     validation_data: Optional[Iterable[Instance]],
-                    params: Params) -> 'Trainer':
+                    params: Params,
+                    validation_iterator: DataIterator = None) -> 'Trainer':
 
         patience = params.pop_int("patience", None)
         validation_metric = params.pop("validation_metric", "-loss")
@@ -975,6 +988,7 @@ class Trainer:
                        train_data, validation_data,
                        patience=patience,
                        validation_metric=validation_metric,
+                       validation_iterator=validation_iterator,
                        num_epochs=num_epochs,
                        serialization_dir=serialization_dir,
                        cuda_device=cuda_device,

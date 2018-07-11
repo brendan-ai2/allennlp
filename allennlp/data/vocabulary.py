@@ -113,17 +113,25 @@ def _read_pretrained_tokens(embeddings_file_uri: str) -> Set[str]:
     return tokens
 
 
-class RegistrableVocabulary(Registrable):
-    default_implementation = "vocabulary"
+def pop_max_vocab_size(params: Params) -> Union[int, Dict[str, int]]:
+    """
+    max_vocab_size is allowed to be either an int or a Dict[str, int] (or nothing).
+    But it could also be a string representing an int (in the case of environment variable
+    substitution). So we need some complex logic to handle it.
+    """
+    size = params.pop("max_vocab_size", None)
 
-    @classmethod
-    def from_params(cls, params: Params, instances: Iterable['adi.Instance'] = None):
-        choice = params.pop_choice('type', cls.list_available(), default_to_first_choice=True)
-        return cls.by_name(choice).from_params(params, instances)
+    if isinstance(size, Params):
+        # This is the Dict[str, int] case.
+        return size.as_dict()
+    elif size is not None:
+        # This is the int / str case.
+        return int(size)
+    else:
+        return None
 
 
-@RegistrableVocabulary.register("vocabulary")
-class Vocabulary(RegistrableVocabulary):
+class Vocabulary(Registrable):
     """
     A Vocabulary maps strings to integers, allowing for strings to be mapped to an
     out-of-vocabulary token.
@@ -351,8 +359,9 @@ class Vocabulary(RegistrableVocabulary):
                           only_include_pretrained_words=only_include_pretrained_words,
                           tokens_to_add=tokens_to_add)
 
+    # There's enough logic here to require a custom from_params.
     @classmethod
-    def from_params(cls, params: Params, instances: Iterable['adi.Instance'] = None):
+    def from_params(cls, params: Params, instances: Iterable['adi.Instance'] = None):  # type: ignore
         """
         There are two possible ways to build a vocabulary; from a
         collection of instances, using :func:`Vocabulary.from_instances`, or
@@ -378,6 +387,17 @@ class Vocabulary(RegistrableVocabulary):
         -------
         A ``Vocabulary``.
         """
+        # pylint: disable=arguments-differ
+
+        # Vocabulary is ``Registrable`` so that you can configure a custom subclass,
+        # but (unlike most of our registrables) almost everyone will want to use the
+        # base implementation. So instead of having an abstract ``VocabularyBase`` or
+        # such, we just add the logic for instantiating a registered subclass here,
+        # so that most users can continue doing what they were doing.
+        vocab_type = params.pop("type", None)
+        if vocab_type is not None:
+            return cls.by_name(vocab_type).from_params(params=params, instances=instances)
+
         extend = params.pop("extend", False)
         vocabulary_directory = params.pop("directory_path", None)
         if not vocabulary_directory and not instances:
@@ -403,7 +423,7 @@ class Vocabulary(RegistrableVocabulary):
             vocab.extend_from_instances(params, instances=instances)
             return vocab
         min_count = params.pop("min_count", None)
-        max_vocab_size = params.pop_int("max_vocab_size", None)
+        max_vocab_size = pop_max_vocab_size(params)
         non_padded_namespaces = params.pop("non_padded_namespaces", DEFAULT_NON_PADDED_NAMESPACES)
         pretrained_files = params.pop("pretrained_files", {})
         only_include_pretrained_words = params.pop_bool("only_include_pretrained_words", False)
@@ -492,7 +512,7 @@ class Vocabulary(RegistrableVocabulary):
         Extends an already generated vocabulary using a collection of instances.
         """
         min_count = params.pop("min_count", None)
-        max_vocab_size = params.pop_int("max_vocab_size", None)
+        max_vocab_size = pop_max_vocab_size(params)
         non_padded_namespaces = params.pop("non_padded_namespaces", DEFAULT_NON_PADDED_NAMESPACES)
         pretrained_files = params.pop("pretrained_files", {})
         only_include_pretrained_words = params.pop_bool("only_include_pretrained_words", False)
