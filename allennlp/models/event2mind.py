@@ -20,16 +20,16 @@ from allennlp.models.model import Model
 from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits, weighted_sum
 
 
-@Model.register("simple_seq2seq")
-class SimpleSeq2Seq(Model):
+@Model.register("event2mind")
+class Event2Mind(Model):
     """
-    This ``SimpleSeq2Seq`` class is a :class:`Model` which takes a sequence, encodes it, and then
+    This ``Event2Mind`` class is a :class:`Model` which takes a sequence, encodes it, and then
     uses the encoded representations to decode another sequence.  You can use this as the basis for
     a neural machine translation system, an abstractive summarization system, or any other common
     seq2seq problem.  The model here is simple, but should be a decent starting place for
     implementing recent models for these tasks.
 
-    This ``SimpleSeq2Seq`` model takes an encoder (:class:`Seq2SeqEncoder`) as an input, and
+    This ``Event2Mind`` model takes an encoder (:class:`Seq2SeqEncoder`) as an input, and
     implements the functionality of the decoder.  In this implementation, the decoder uses the
     encoder's outputs in two ways. The hidden state of the decoder is initialized with the output
     from the final time-step of the encoder, and when using attention, a weighted average of the
@@ -76,7 +76,7 @@ class SimpleSeq2Seq(Model):
                  target_embedding_dim: int = None,
                  attention_function: SimilarityFunction = None,
                  scheduled_sampling_ratio: float = 0.0) -> None:
-        super(SimpleSeq2Seq, self).__init__(vocab)
+        super(Event2Mind, self).__init__(vocab)
         self._source_embedder = source_embedder
         self._encoder = encoder
         self._max_decoding_steps = max_decoding_steps
@@ -148,8 +148,10 @@ class SimpleSeq2Seq(Model):
         step_probabilities = []
         step_predictions = []
         for timestep in range(num_decoding_steps):
-            if self.training and torch.rand(1).item() >= self._scheduled_sampling_ratio:
+            if target_tokens is not None:
                 input_choices = targets[:, timestep]
+            #if self.training and torch.rand(1).item() >= self._scheduled_sampling_ratio:
+            #   input_choices = targets[:, timestep]
             else:
                 if timestep == 0:
                     # For the first timestep, when we do not have targets, we input start symbols.
@@ -287,7 +289,7 @@ class SimpleSeq2Seq(Model):
         return output_dict
 
     @classmethod
-    def from_params(cls, vocab, params: Params) -> 'SimpleSeq2Seq':
+    def from_params(cls, vocab, params: Params) -> 'Event2Mind':
         source_embedder_params = params.pop("source_embedder")
         source_embedder = TextFieldEmbedder.from_params(vocab, source_embedder_params)
         encoder = Seq2SeqEncoder.from_params(params.pop("encoder"))
