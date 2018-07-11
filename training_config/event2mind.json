@@ -43,7 +43,8 @@
       "input_size": 300,
       "hidden_size": 100,
       "num_layers": 1,
-      "bidirectional": true
+      "bidirectional": true,
+      "dropout": 0.2
     },
     "max_decoding_steps": 10,
     "target_namespace": "target_tokens",
