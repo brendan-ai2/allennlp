@@ -148,10 +148,9 @@ class Event2Mind(Model):
         step_probabilities = []
         step_predictions = []
         for timestep in range(num_decoding_steps):
+            # See https://github.com/allenai/allennlp/issues/1134.
             if target_tokens is not None:
                 input_choices = targets[:, timestep]
-            #if self.training and torch.rand(1).item() >= self._scheduled_sampling_ratio:
-            #   input_choices = targets[:, timestep]
             else:
                 if timestep == 0:
                     # For the first timestep, when we do not have targets, we input start symbols.
