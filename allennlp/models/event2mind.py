@@ -17,6 +17,7 @@ from allennlp.modules.similarity_functions import SimilarityFunction
 from allennlp.modules.token_embedders import Embedding
 from allennlp.models.model import Model
 from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits, weighted_sum
+from allennlp.training.metrics import SequenceAccuracy
 
 
 @Model.register("event2mind")
@@ -108,6 +109,7 @@ class Event2Mind(Model):
         # TODO (brendanr): Turn this back into LSTMCell.
         self._decoder_cell = GRUCell(self._decoder_input_dim, self._decoder_output_dim)
         self._output_projection_layer = Linear(self._decoder_output_dim, num_classes)
+        self._target_accuracy = SequenceAccuracy()
 
     @overrides
     def forward(self,  # type: ignore
@@ -182,7 +184,13 @@ class Event2Mind(Model):
             target_mask = get_text_field_mask(target_tokens)
             loss = self._get_loss(logits, targets, target_mask)
             output_dict["loss"] = loss
-            # TODO: Define metrics
+
+            if not self.training:
+                # all_predictions is (batch_size, num_decoding_steps)
+                # Unsqueeze until beam search is figured out...
+                # (batch_size, 1, num_decoding_steps)
+                all_top_k_predictions = all_predictions.unqueeze(1)
+                self._target_accuracy(all_predictions.unqueeze(1), targets, target_mask)
         return output_dict
 
     def _prepare_decode_step_input(self,
