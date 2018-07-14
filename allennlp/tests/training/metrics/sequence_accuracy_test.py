@@ -7,15 +7,24 @@ from allennlp.common.testing import AllenNlpTestCase
 from allennlp.common.checks import ConfigurationError
 from allennlp.training.metrics import SequenceAccuracy
 
-class CategoricalAccuracyTest(AllenNlpTestCase):
+class SequenceAccuracyTest(AllenNlpTestCase):
     def test_categorical_accuracy(self):
         accuracy = SequenceAccuracy()
-        predictions = torch.Tensor([[0.35, 0.25, 0.1, 0.1, 0.2],
-                                    [0.1, 0.6, 0.1, 0.2, 0.0]])
-        targets = torch.Tensor([0, 3])
-        accuracy(predictions, targets)
+
+        gold = torch.tensor([
+            [1, 2, 3],
+            [2, 4, 8],
+            [0, 1, 1]
+        ])
+        predictions = torch.tensor([
+            [[1, 2, 3], [1, 2, -1]],
+            [[2, 4, 8], [2, 5, 9]],
+            [[-1, -1, -1], [0, 1, -1]]
+        ])
+
+        accuracy(predictions, gold)
         actual_accuracy = accuracy.get_metric()
-        assert actual_accuracy == 0.50
+        assert actual_accuracy == 2.0/3
 
     #def test_top_k_categorical_accuracy(self):
     #    accuracy = CategoricalAccuracy(top_k=2)
