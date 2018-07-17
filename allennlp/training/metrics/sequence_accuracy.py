@@ -35,10 +35,12 @@ class SequenceAccuracy(Metric):
         predictions, gold_labels, mask = self.unwrap_to_tensors(predictions, gold_labels, mask)
 
         # Some sanity checks.
-        num_classes = predictions.size(-1)
         if gold_labels.dim() != predictions.dim() - 1:
-            raise ConfigurationError("gold_labels must have dimension == predictions.size() - 1 but "
-                                     "found tensor of shape: {}".format(predictions.size()))
+            raise ConfigurationError("gold_labels must have dimension == predictions.dim() - 1 but "
+                                     "found tensor of shape: {}".format(gold_labels.size()))
+        if mask is not None and mask.size() != gold_labels.size():
+            raise ConfigurationError("mask must have the same size as predictions but "
+                                     "found tensor of shape: {}".format(mask.size()))
 
         # gold = torch.tensor([[1, 2, 3], [2, 4, 8], [0, 1, 1]])
         # guesses = torch.tensor([[[1, 2, 3], [1, 2, -1]], [[2, 4, 8], [2, 5, 9]], [[-1, -1, -1], [0, 1, 1]]])
@@ -50,28 +52,21 @@ class SequenceAccuracy(Metric):
         expanded_size.insert(1, k)
         print("expanded_size: {}".format(expanded_size))
         expanded_gold = gold_labels.unsqueeze(1).expand(expanded_size)
-        eqs = expanded_gold.eq(predictions)
+
+        if mask is not None:
+            expanded_mask = mask.unsqueeze(1).expand(expanded_size)
+            masked_gold = expanded_mask * expanded_gold
+            masked_predictions = expanded_mask * predictions
+        else:
+            masked_gold = expanded_gold
+            masked_predictions = predictions
+
+        eqs = masked_gold.eq(masked_predictions)
         matches_per_question = eqs.min(dim=2)[0]
         some_match = matches_per_question.max(dim=1)[0]
         correct = some_match.sum().item()
-        # TODO(brendanr): Handle mask.
 
-        ## Top K indexes of the predictions (or fewer, if there aren't K of them).
-        ## Special case topk == 1, because it's common and .max() is much faster than .topk().
-        #if self._top_k == 1:
-        #    top_k = predictions.max(-1)[1].unsqueeze(-1)
-        #else:
-        #    top_k = predictions.topk(min(self._top_k, predictions.shape[-1]), -1)[1]
-
-        ## This is of shape (batch_size, ..., top_k).
-        #correct = top_k.eq(gold_labels.long().unsqueeze(-1)).float()
-
-        if mask is not None:
-            #correct *= mask.float().unsqueeze(-1)
-            #self.total_count += mask.sum()
-            pass
-        else:
-            self.total_count += predictions.size()[0]
+        self.total_count += predictions.size()[0]
         self.correct_count += correct
 
     def get_metric(self, reset: bool = False):
