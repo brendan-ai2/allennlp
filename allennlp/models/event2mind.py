@@ -189,8 +189,16 @@ class Event2Mind(Model):
                 # all_predictions is (batch_size, num_decoding_steps)
                 # Unsqueeze until beam search is figured out...
                 # (batch_size, 1, num_decoding_steps)
-                all_top_k_predictions = all_predictions.unqueeze(1)
-                self._target_accuracy(all_predictions.unqueeze(1), targets, target_mask)
+                all_top_k_predictions = all_predictions.unsqueeze(1)
+                # See comment in _get_loss.
+                # TODO(brendanr): Do we need contiguous here?
+                relevant_targets = targets[:, 1:].contiguous()
+                relevant_mask = target_mask[:, 1:].contiguous()
+                self._target_accuracy(
+                        all_top_k_predictions,
+                        relevant_targets,
+                        relevant_mask
+                )
         return output_dict
 
     def _prepare_decode_step_input(self,
@@ -293,3 +301,12 @@ class Event2Mind(Model):
             all_predicted_tokens.append(predicted_tokens)
         output_dict["predicted_tokens"] = all_predicted_tokens
         return output_dict
+
+    @overrides
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+        all_metrics = {}
+        # TODO(brendanr): Update this to be top 10 recall.
+        # TODO(brendanr): Think about recall vs precision in this case.
+        if not self.training:
+            all_metrics["recall"] = self._target_accuracy.get_metric(reset=reset)
+        return all_metrics
