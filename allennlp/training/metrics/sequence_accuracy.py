@@ -13,8 +13,7 @@ class SequenceAccuracy(Metric):
     Sequence Top-K accuracy. Assumes integer labels, with
     each item to be classified having a single correct class.
     """
-    def __init__(self, top_k: int = 1) -> None:
-        self._top_k = top_k
+    def __init__(self) -> None:
         self.correct_count = 0.0
         self.total_count = 0.0
 
@@ -26,7 +25,7 @@ class SequenceAccuracy(Metric):
         Parameters
         ----------
         predictions : ``torch.Tensor``, required.
-            A tensor of predictions of shape (batch_size, top_k, sequence_length).
+            A tensor of predictions of shape (batch_size, k, sequence_length).
         gold_labels : ``torch.Tensor``, required.
             A tensor of integer class label of shape (batch_size, sequence_length).
         mask: ``torch.Tensor``, optional (default = None).
@@ -42,15 +41,9 @@ class SequenceAccuracy(Metric):
             raise ConfigurationError("mask must have the same size as predictions but "
                                      "found tensor of shape: {}".format(mask.size()))
 
-        # gold = torch.tensor([[1, 2, 3], [2, 4, 8], [0, 1, 1]])
-        # guesses = torch.tensor([[[1, 2, 3], [1, 2, -1]], [[2, 4, 8], [2, 5, 9]], [[-1, -1, -1], [0, 1, 1]]])
-        # gold2 = gold.unsqueeze(1)
         k = predictions.size()[1]
-        print("k: {}".format(k))
-        print("gold_labels.size(): {}".format(gold_labels.size()))
         expanded_size = list(gold_labels.size())
         expanded_size.insert(1, k)
-        print("expanded_size: {}".format(expanded_size))
         expanded_gold = gold_labels.unsqueeze(1).expand(expanded_size)
 
         if mask is not None:
