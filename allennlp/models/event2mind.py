@@ -150,6 +150,7 @@ class Event2Mind(Model):
         step_predictions = []
         for timestep in range(num_decoding_steps):
             # See https://github.com/allenai/allennlp/issues/1134.
+            # TODO(brendanr): Grok this.
             if target_tokens is not None:
                 input_choices = targets[:, timestep]
             else:
