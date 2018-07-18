@@ -135,6 +135,10 @@ class Event2Mind(Model):
         source_mask = get_text_field_mask(source_tokens)
         encoder_outputs = self._encoder(embedded_input, source_mask)
         final_encoder_output = encoder_outputs[:, -1]  # (batch_size, encoder_output_dim)
+
+        #if not self.training:
+
+
         if target_tokens:
             targets = target_tokens["tokens"]
             target_sequence_length = targets.size()[1]
@@ -245,6 +249,11 @@ class Event2Mind(Model):
             return torch.cat((attended_input, embedded_input), -1)
         else:
             return embedded_input
+
+    def beam_search(self,
+                    source_tokens: Dict[str, torch.LongTensor],
+                    bestk: int) -> Dict[str, torch.Tensor]:
+
 
     @staticmethod
     def _get_loss(logits: torch.LongTensor,
