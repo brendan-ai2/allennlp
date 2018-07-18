@@ -12,7 +12,6 @@ import torch.nn.functional as F
 from allennlp.common.util import START_SYMBOL, END_SYMBOL
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules import TextFieldEmbedder, Seq2SeqEncoder
-from allennlp.modules.attention import LegacyAttention
 from allennlp.modules.similarity_functions import SimilarityFunction
 from allennlp.modules.token_embedders import Embedding
 from allennlp.models.model import Model
@@ -32,9 +31,7 @@ class Event2Mind(Model):
     This ``Event2Mind`` model takes an encoder (:class:`Seq2SeqEncoder`) as an input, and
     implements the functionality of the decoder.  In this implementation, the decoder uses the
     encoder's outputs in two ways. The hidden state of the decoder is initialized with the output
-    from the final time-step of the encoder, and when using attention, a weighted average of the
-    outputs from the encoder is concatenated to the inputs of the decoder at every timestep.
-
+    from the final time-step of the encoder.
     Parameters
     ----------
     vocab : ``Vocabulary``, required
@@ -54,10 +51,6 @@ class Event2Mind(Model):
     target_embedding_dim : int, optional (default = source_embedding_dim)
         You can specify an embedding dimensionality for the target side. If not, we'll use the same
         value as the source embedder's.
-    attention_function: ``SimilarityFunction``, optional (default = None)
-        If you want to use attention to get a dynamic summary of the encoder outputs at each step
-        of decoding, this is the function used to compute similarity between the decoder hidden
-        state and encoder outputs.
     scheduled_sampling_ratio: float, optional (default = 0.0)
         At each timestep during training, we sample a random number between 0 and 1, and if it is
         not less than this value, we use the ground truth labels for the whole batch. Else, we use
@@ -74,14 +67,12 @@ class Event2Mind(Model):
                  max_decoding_steps: int,
                  target_namespace: str = "tokens",
                  target_embedding_dim: int = None,
-                 attention_function: SimilarityFunction = None,
                  scheduled_sampling_ratio: float = 0.0) -> None:
         super(Event2Mind, self).__init__(vocab)
         self._source_embedder = source_embedder
         self._encoder = encoder
         self._max_decoding_steps = max_decoding_steps
         self._target_namespace = target_namespace
-        self._attention_function = attention_function
         self._scheduled_sampling_ratio = scheduled_sampling_ratio
         # We need the start symbol to provide as the input at the first timestep of decoding, and
         self._embedding_dropout = nn.Dropout(0.8)
@@ -92,21 +83,11 @@ class Event2Mind(Model):
         self._end_index = self.vocab.get_token_index(END_SYMBOL, self._target_namespace)
         num_classes = self.vocab.get_vocab_size(self._target_namespace)
         # Decoder output dim needs to be the same as the encoder output dim since we initialize the
-        # hidden state of the decoder with that of the final hidden states of the encoder. Also, if
-        # we're using attention with ``DotProductSimilarity``, this is needed.
+        # hidden state of the decoder with that of the final hidden states of the encoder.
         self._decoder_output_dim = self._encoder.get_output_dim()
         target_embedding_dim = target_embedding_dim or self._source_embedder.get_output_dim()
         self._target_embedder = Embedding(num_classes, target_embedding_dim)
-        if self._attention_function:
-            self._decoder_attention = LegacyAttention(self._attention_function)
-            # The output of attention, a weighted average over encoder outputs, will be
-            # concatenated to the input vector of the decoder at each time step.
-            self._decoder_input_dim = self._encoder.get_output_dim() + target_embedding_dim
-        else:
-            self._decoder_input_dim = target_embedding_dim
-        # TODO (pradeep): Do not hardcode decoder cell type.
-        #self._decoder_cell = LSTMCell(self._decoder_input_dim, self._decoder_output_dim)
-        # TODO (brendanr): Turn this back into LSTMCell.
+        self._decoder_input_dim = target_embedding_dim
         self._decoder_cell = GRUCell(self._decoder_input_dim, self._decoder_output_dim)
         self._output_projection_layer = Linear(self._decoder_output_dim, num_classes)
         self._target_accuracy = SequenceAccuracy()
@@ -164,8 +145,7 @@ class Event2Mind(Model):
                     input_choices = source_mask.new_full((batch_size,), fill_value=self._start_index)
                 else:
                     input_choices = last_predictions
-            decoder_input = self._prepare_decode_step_input(input_choices, decoder_hidden,
-                                                            encoder_outputs, source_mask)
+            decoder_input = self._target_embedder(input_choices)
             decoder_hidden = self._decoder_cell(decoder_input, decoder_hidden)
             # (batch_size, num_classes)
             output_projections = self._output_projection_layer(decoder_hidden)
@@ -206,54 +186,10 @@ class Event2Mind(Model):
                 )
         return output_dict
 
-    def _prepare_decode_step_input(self,
-                                   input_indices: torch.LongTensor,
-                                   decoder_hidden_state: torch.LongTensor = None,
-                                   encoder_outputs: torch.LongTensor = None,
-                                   encoder_outputs_mask: torch.LongTensor = None) -> torch.LongTensor:
-        """
-        Given the input indices for the current timestep of the decoder, and all the encoder
-        outputs, compute the input at the current timestep.  Note: This method is agnostic to
-        whether the indices are gold indices or the predictions made by the decoder at the last
-        timestep. So, this can be used even if we're doing some kind of scheduled sampling.
-
-        If we're not using attention, the output of this method is just an embedding of the input
-        indices.  If we are, the output will be a concatentation of the embedding and an attended
-        average of the encoder inputs.
-
-        Parameters
-        ----------
-        input_indices : torch.LongTensor
-            Indices of either the gold inputs to the decoder or the predicted labels from the
-            previous timestep.
-        decoder_hidden_state : torch.LongTensor, optional (not needed if no attention)
-            Output of from the decoder at the last time step. Needed only if using attention.
-        encoder_outputs : torch.LongTensor, optional (not needed if no attention)
-            Encoder outputs from all time steps. Needed only if using attention.
-        encoder_outputs_mask : torch.LongTensor, optional (not needed if no attention)
-            Masks on encoder outputs. Needed only if using attention.
-        """
-        # input_indices : (batch_size,)  since we are processing these one timestep at a time.
-        # (batch_size, target_embedding_dim)
-        embedded_input = self._target_embedder(input_indices)
-        if self._attention_function:
-            # encoder_outputs : (batch_size, input_sequence_length, encoder_output_dim)
-            # Ensuring mask is also a FloatTensor. Or else the multiplication within attention will
-            # complain.
-            encoder_outputs_mask = encoder_outputs_mask.float()
-            # (batch_size, input_sequence_length)
-            input_weights = self._decoder_attention(decoder_hidden_state, encoder_outputs, encoder_outputs_mask)
-            # (batch_size, encoder_output_dim)
-            attended_input = weighted_sum(encoder_outputs, input_weights)
-            # (batch_size, encoder_output_dim + target_embedding_dim)
-            return torch.cat((attended_input, embedded_input), -1)
-        else:
-            return embedded_input
-
     def beam_search(self,
                     source_tokens: Dict[str, torch.LongTensor],
                     bestk: int) -> Dict[str, torch.Tensor]:
-
+        pass
 
     @staticmethod
     def _get_loss(logits: torch.LongTensor,
