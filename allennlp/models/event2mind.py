@@ -189,7 +189,7 @@ class Event2Mind(Model):
 
     def beam_search(self,
                     final_encoder_output: torch.LongTensor,
-                    bestk: int,
+                    k: int,
                     num_decoding_steps: int,
                     batch_size: int,
                     source_mask) -> torch.Tensor:
@@ -198,34 +198,66 @@ class Event2Mind(Model):
         step_probabilities = []
         step_predictions = []
 
-        root = {
-                'last_predictions': source_mask.new_full((batch_size,), fill_value=self._start_index),
-                'decoder_hidden': final_encoder_output,
-                'log_probabilities': torch.zeros(batch_size)
-        }
-        beam = [root]
+        # List of (batchsize * k,) tensors. One for each time step. Does not
+        # include the start symbols. These are implicit.
+        predictions = []
+        # List of (batchsize * k,) tensors. One for each time step. None for
+        # the first.  Stores the index n for the parent prediction, i.e.
+        # predictions[t-1][n], that it came from. This is aligned with
+        # predictions so that backpointer[t][n] corresponds to
+        # predictions[t][n].
+        backpointers = []
+        # List of (batchsize * k,) tensors.
+        log_probabilities = []
 
-        for timestep in range(num_decoding_steps):
-            for node in beam:
-                last_predictions = node['last_predictions']
-                decoder_hidden = node['decoder_hidden']
+        # Timestep 1
+        start_predictions = source_mask.new_full((batch_size,), fill_value=self._start_index)
+        start_decoder_input = self._target_embedder(start_predictions)
+        start_decoder_hidden = self._decoder_cell(start_decoder_input, final_encoder_output)
+        start_output_projections = self._output_projection_layer(start_decoder_hidden)
+        start_class_log_probabilities = F.log_softmax(start_output_projections, dim=-1)
+        start_top_log_probabilities, start_predicted_classes = start_class_log_probabilities.topk(k)
 
-                decoder_input = self._target_embedder(last_predictions)
-                decoder_hidden = self._decoder_cell(decoder_input, decoder_hidden)
-                # (batch_size, num_classes)
-                output_projections = self._output_projection_layer(decoder_hidden)
-                # list of (batch_size, 1, num_classes)
-                step_logits.append(output_projections.unsqueeze(1))
-                class_probabilities = F.softmax(output_projections, dim=-1)
-                _, predicted_classes = torch.max(class_probabilities, 1)
-                step_probabilities.append(class_probabilities.unsqueeze(1))
+        # Set starting values
+        # (batch_size * k,)
+        log_probabilities.append(start_top_log_probabilities.reshape(batch_size * k))
+        # (batch_size * k,)
+        predictions.append(start_predicted_classes.reshape(batch_size * k))
+        # (batch_size * k, _decoder_output_dim)
+        decoder_hidden = start_decoder_hidden.
+            unsqueeze(1).expand(batch_size, k, self._decoder_output_dim). # Same hidden state for each k.
+            reshape(batch_size * k, self._decoder_output_dim)
 
-                # TODO(brendanr): Fix me to not mutate node.
-                node['last_predictions'] = predicted_classes
-                node['decoder_hidden'] = decoder_hidden
+        for timestep in range(num_decoding_steps - 1):
+            decoder_input = self._target_embedder(predictions[-1])
+            decoder_hidden = self._decoder_cell(decoder_input, decoder_hidden)
+            # (batch_size * k, num_classes)
+            output_projections = self._output_projection_layer(decoder_hidden)
 
-                # (batch_size, 1)
-                step_predictions.append(predicted_classes.unsqueeze(1))
+            class_log_probabilities = F.log_softmax(output_projections, dim=-1)
+            # (batch_size * k, k), (batch_size * k, k)
+            top_log_probabilities, predicted_classes = class_log_probabilities.topk(k)
+            expanded_last_log_probabilities = log_probabilities[-1].unsqueeze(1).expand(batch_size * k, k)
+            summed_top_log_probabilities = top_log_probabilities + expanded_last_log_probabilities
+
+            reshaped_top_log_probabilities = summed_top_log_probabilities.reshape(batch_size, k * k)
+            
+            # Restrict beam
+
+            # Mod/divide the restricted indices to get the backpointers and classes. Sorta, I think.
+
+            # list of (batch_size, 1, num_classes)
+            step_logits.append(output_projections.unsqueeze(1))
+            class_probabilities = F.softmax(output_projections, dim=-1)
+            _, predicted_classes = torch.max(class_probabilities, 1)
+            step_probabilities.append(class_probabilities.unsqueeze(1))
+
+            # TODO(brendanr): Fix me to not mutate node.
+            node['last_predictions'] = predicted_classes
+            node['decoder_hidden'] = decoder_hidden
+
+            # (batch_size, 1)
+            step_predictions.append(predicted_classes.unsqueeze(1))
         # step_logits is a list containing tensors of shape (batch_size, 1, num_classes)
         # This is (batch_size, num_decoding_steps, num_classes)
         logits = torch.cat(step_logits, 1)
