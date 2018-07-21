@@ -193,21 +193,18 @@ class Event2Mind(Model):
                     num_decoding_steps: int,
                     batch_size: int,
                     source_mask) -> torch.Tensor:
-        last_predictions = None
-        step_logits = []
-        step_probabilities = []
-        step_predictions = []
-
-        # List of (batchsize * k,) tensors. One for each time step. Does not
+        # List of (batchsize, k) tensors. One for each time step. Does not
         # include the start symbols. These are implicit.
         predictions = []
-        # List of (batchsize * k,) tensors. One for each time step. None for
+        # TODO(brendanr): Fix this comment.
+        # List of (batchsize, k) tensors. One for each time step. None for
         # the first.  Stores the index n for the parent prediction, i.e.
-        # predictions[t-1][n], that it came from. This is aligned with
-        # predictions so that backpointer[t][n] corresponds to
+        # predictions[t-1][i][n], that it came from. This is aligned with
+        # predictions so that backpointer[t][i][n] corresponds to
         # predictions[t][n].
         backpointers = []
         # List of (batchsize * k,) tensors.
+        # TODO(brendanr): Just keep last
         log_probabilities = []
 
         # Timestep 1
@@ -219,17 +216,19 @@ class Event2Mind(Model):
         start_top_log_probabilities, start_predicted_classes = start_class_log_probabilities.topk(k)
 
         # Set starting values
-        # (batch_size * k,)
-        log_probabilities.append(start_top_log_probabilities.reshape(batch_size * k))
-        # (batch_size * k,)
-        predictions.append(start_predicted_classes.reshape(batch_size * k))
+        # [(batch_size, k)]
+        log_probabilities.append(start_top_log_probabilities)
+        # [(batch_size, k)]
+        predictions.append(start_predicted_classes)
+        # Set the same hidden state for each element in beam.
         # (batch_size * k, _decoder_output_dim)
-        decoder_hidden = start_decoder_hidden.
-            unsqueeze(1).expand(batch_size, k, self._decoder_output_dim). # Same hidden state for each k.
+        decoder_hidden = start_decoder_hidden.\
+            unsqueeze(1).expand(batch_size, k, self._decoder_output_dim).\
             reshape(batch_size * k, self._decoder_output_dim)
 
         for timestep in range(num_decoding_steps - 1):
-            decoder_input = self._target_embedder(predictions[-1])
+            decoder_input = self._target_embedder(predictions[-1].reshape(batch_size * k))
+            # reshape(batch_size * k, self._decoder_output_dim)
             decoder_hidden = self._decoder_cell(decoder_input, decoder_hidden)
             # (batch_size * k, num_classes)
             output_projections = self._output_projection_layer(decoder_hidden)
@@ -237,33 +236,51 @@ class Event2Mind(Model):
             class_log_probabilities = F.log_softmax(output_projections, dim=-1)
             # (batch_size * k, k), (batch_size * k, k)
             top_log_probabilities, predicted_classes = class_log_probabilities.topk(k)
-            expanded_last_log_probabilities = log_probabilities[-1].unsqueeze(1).expand(batch_size * k, k)
+            # TODO(brendanr): Account for predicted_class == end_symbol explicitly?
+            # TODO(brendanr): Normalize for length?
+            # (batch_size * k, k)
+            expanded_last_log_probabilities = log_probabilities[-1].\
+                unsqueeze(2).\
+                expand(batch_size, k, k).\
+                reshape(batch_size * k, k)
             summed_top_log_probabilities = top_log_probabilities + expanded_last_log_probabilities
 
             reshaped_top_log_probabilities = summed_top_log_probabilities.reshape(batch_size, k * k)
-            
-            # Restrict beam
+            reshaped_predicted_classes = predicted_classes.reshape(batch_size, k * k)
+            restricted_beam_log_probs, restricted_beam_indices = reshaped_top_log_probabilities.topk(k)
+            # TODO(brendanr): Something about this is weird. restricted_predicted_classes == restricted_beam_indices???
+            restricted_predicted_classes = reshaped_predicted_classes.gather(1, restricted_beam_indices)
 
-            # Mod/divide the restricted indices to get the backpointers and classes. Sorta, I think.
+            log_probabilities.append(restricted_beam_log_probs)
+            predictions.append(restricted_predicted_classes)
+            backpointer = restricted_beam_indices / k
+            backpointers.append(backpointer)
+            expanded_backpointer = backpointer.unsqueeze(2).expand(batch_size, k, self._decoder_output_dim)
+            decoder_hidden = decoder_hidden.\
+                    reshape(batch_size, k, self._decoder_output_dim).\
+                    gather(1, expanded_backpointer).\
+                    reshape(batch_size * k)
 
-            # list of (batch_size, 1, num_classes)
-            step_logits.append(output_projections.unsqueeze(1))
-            class_probabilities = F.softmax(output_projections, dim=-1)
-            _, predicted_classes = torch.max(class_probabilities, 1)
-            step_probabilities.append(class_probabilities.unsqueeze(1))
+        if len(predictions) != num_decoding_steps:
+            raise RuntimeError("len(predictions) not equal to num_decoding_steps")
 
-            # TODO(brendanr): Fix me to not mutate node.
-            node['last_predictions'] = predicted_classes
-            node['decoder_hidden'] = decoder_hidden
+        if len(backpointers) != num_decoding_steps - 1:
+            raise RuntimeError("len(backpointers) not equal to num_decoding_steps")
 
-            # (batch_size, 1)
-            step_predictions.append(predicted_classes.unsqueeze(1))
-        # step_logits is a list containing tensors of shape (batch_size, 1, num_classes)
-        # This is (batch_size, num_decoding_steps, num_classes)
-        logits = torch.cat(step_logits, 1)
-        class_probabilities = torch.cat(step_probabilities, 1)
-        all_predictions = torch.cat(step_predictions, 1)
-        return all_predictions.unsqueeze(1)
+        # Reconstruct the sequences.
+        reconstructed_predictions = [predictions[num_decoding_steps - 1].unsqueeze(2)]
+        cur_backpointers = backpointers[num_decoding_steps - 2]
+        for timestep in range(num_decoding_steps - 2, 0, -1):
+            cur_preds = predictions[timestep].gather(1, cur_backpointers).unsqueeze(2)
+            reconstructed_predictions.append(cur_preds)
+            cur_backpointers = backpointers[timestep - 1].gather(1, cur_backpointers)
+        final_preds = predictions[0].gather(1, cur_backpointers).unsqueeze(2)
+        reconstructed_predictions.append(final_preds)
+        start_tokens = source_mask.new_full((batch_size,k), fill_value=self._start_index)
+        reconstructed_predictions.append(start_tokens.unsqueeze(2))
+
+        all_predictions = torch.cat(reversed(reconstructed_predictions), 2)
+        return all_predictions
 
     @staticmethod
     def _get_loss(logits: torch.LongTensor,
