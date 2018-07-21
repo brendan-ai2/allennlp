@@ -194,7 +194,7 @@ class Event2Mind(Model):
                     batch_size: int,
                     source_mask) -> torch.Tensor:
         # List of (batchsize, k) tensors. One for each time step. Does not
-        # include the start symbols. These are implicit.
+        # include the start symbols, which are implicit.
         predictions = []
         # TODO(brendanr): Fix this comment.
         # List of (batchsize, k) tensors. One for each time step. None for
@@ -276,8 +276,7 @@ class Event2Mind(Model):
             cur_backpointers = backpointers[timestep - 1].gather(1, cur_backpointers)
         final_preds = predictions[0].gather(1, cur_backpointers).unsqueeze(2)
         reconstructed_predictions.append(final_preds)
-        start_tokens = source_mask.new_full((batch_size,k), fill_value=self._start_index)
-        reconstructed_predictions.append(start_tokens.unsqueeze(2))
+        # We don't add the start tokens here. They are implicit.
 
         all_predictions = torch.cat(list(reversed(reconstructed_predictions)), 2)
         return all_predictions
