@@ -279,7 +279,7 @@ class Event2Mind(Model):
         start_tokens = source_mask.new_full((batch_size,k), fill_value=self._start_index)
         reconstructed_predictions.append(start_tokens.unsqueeze(2))
 
-        all_predictions = torch.cat(reversed(reconstructed_predictions), 2)
+        all_predictions = torch.cat(list(reversed(reconstructed_predictions)), 2)
         return all_predictions
 
     @staticmethod
