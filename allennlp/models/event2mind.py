@@ -259,7 +259,7 @@ class Event2Mind(Model):
             decoder_hidden = decoder_hidden.\
                     reshape(batch_size, k, self._decoder_output_dim).\
                     gather(1, expanded_backpointer).\
-                    reshape(batch_size * k)
+                    reshape(batch_size * k, self._decoder_output_dim)
 
         if len(predictions) != num_decoding_steps:
             raise RuntimeError("len(predictions) not equal to num_decoding_steps")
