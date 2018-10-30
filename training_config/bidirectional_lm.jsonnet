@@ -1,31 +1,36 @@
 {
   "dataset_reader": {
-      "type": "simple_language_modeling",
-      "tokenizer": {
-        "type": "word",
-        "word_splitter": {
-          # The 1 Billion Word Language Model Benchmark dataset is
-          # pre-tokenized. (Also, if you're running against a untokenized
-          # dataset be aware that there are serialization issues with Spacy.
-          # These come into play in the multiprocess case.)
-          "type": "just_spaces"
-        }
-      },
-      "token_indexers": {
-        "tokens": {
-          "type": "single_id",
-          "start_tokens": ["<s>"],
-          "end_tokens": ["</s>"]
+    "type": "multiprocess",
+    "base_reader": {
+        "type": "simple_language_modeling",
+        "tokenizer": {
+          "type": "word",
+          "word_splitter": {
+	    # The 1 Billion Word Language Model Benchmark dataset is
+	    # pre-tokenized. (Also, if you're running against a untokenized
+	    # dataset be aware that there are serialization issues with Spacy.
+	    # These come into play in the multiprocess case.)
+            "type": "just_spaces"
+          }
         },
-        "token_characters": {
-          "type": "characters",
-          "start_tokens": ["<s>"],
-          "end_tokens": ["</s>"]
+        "token_indexers": {
+          "tokens": {
+            "type": "single_id",
+            "start_tokens": ["<s>"],
+            "end_tokens": ["</s>"]
+          },
+          "token_characters": {
+            "type": "characters",
+            "start_tokens": ["<s>"],
+            "end_tokens": ["</s>"]
+          }
         }
-      }
+    },
+    "num_workers": 8
+    # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   },
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
-  "validation_data_path": "/home/brendanr/workbenches/calypso/test/news.en-00000-of-00100",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   "vocabulary": {
       "tokens_to_add": {
           "tokens": ["<s>", "</s>"],
@@ -65,11 +70,12 @@
   },
   "iterator": {
     "type": "basic",
-    "batch_size": 64
+    "batch_size": 32
   },
   "trainer": {
     "num_epochs": 10,
-    "cuda_device" : [0, 1],
+    # TODO(brendanr): Switch this to [0, 1].
+    "cuda_device" : -1,
     "optimizer": {
       "type": "sgd",
       "lr": 0.01
