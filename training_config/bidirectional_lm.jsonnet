@@ -1,21 +1,26 @@
 {
   "dataset_reader": {
-    "type": "simple_language_modeling",
-    "token_indexers": {
-      "tokens": {
-        "type": "single_id",
-        "start_tokens": ["<s>"],
-        "end_tokens": ["</s>"]
-      },
-      "token_characters": {
-        "type": "characters",
-        "start_tokens": ["<s>"],
-        "end_tokens": ["</s>"]
-      }
-    }
+    "type": "multiprocess",
+    "base_reader": {
+        "type": "simple_language_modeling",
+        "token_indexers": {
+          "tokens": {
+            "type": "single_id",
+            "start_tokens": ["<s>"],
+            "end_tokens": ["</s>"]
+          },
+          "token_characters": {
+            "type": "characters",
+            "start_tokens": ["<s>"],
+            "end_tokens": ["</s>"]
+          }
+        }
+    },
+    "num_workers": 8
+    # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   },
-  "train_data_path": "allennlp/tests/fixtures/bidirectional_lm/sentences.txt",
-  "validation_data_path": "allennlp/tests/fixtures/bidirectional_lm/sentences.txt",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   "vocabulary": {
       "tokens_to_add": {
           "tokens": ["<s>", "</s>"],
@@ -59,6 +64,7 @@
   },
   "trainer": {
     "num_epochs": 10,
+    # TODO(brendanr): Switch this to [0, 1].
     "cuda_device" : -1,
     "optimizer": {
       "type": "sgd",
