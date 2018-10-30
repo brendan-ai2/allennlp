@@ -3,6 +3,16 @@
     "type": "multiprocess",
     "base_reader": {
         "type": "simple_language_modeling",
+        "tokenizer": {
+          "type": "word",
+          "word_splitter": {
+	    # The 1 Billion Word Language Model Benchmark dataset is
+	    # pre-tokenized. (Also, if you're running against a untokenized
+	    # dataset be aware that there are serialization issues with Spacy.
+	    # These come into play in the multiprocess case.)
+            "type": "just_spaces"
+          }
+        },
         "token_indexers": {
           "tokens": {
             "type": "single_id",
