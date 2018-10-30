@@ -26,7 +26,7 @@
           }
         }
     },
-    "num_workers": 8
+    "num_workers": 4
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   },
   "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
@@ -69,8 +69,12 @@
     }
   },
   "iterator": {
-    "type": "basic",
-    "batch_size": 32
+    "type": "multiprocess",
+    "iterator": {
+      "type": "basic",
+      "batch_size": 32
+    },
+    "num_workers": 4
   },
   "trainer": {
     "num_epochs": 10,
