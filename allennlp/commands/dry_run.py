@@ -102,6 +102,7 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
     logger.info("From dataset instances, %s will be considered for vocabulary creation.",
                 ", ".join(datasets_for_vocab_creation))
 
+    import pdb; pdb.set_trace()
     instances = [instance for key, dataset in all_datasets.items()
                  for instance in dataset
                  if key in datasets_for_vocab_creation]
