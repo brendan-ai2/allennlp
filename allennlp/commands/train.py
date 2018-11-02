@@ -293,7 +293,7 @@ def train_model(params: Params,
 
     logger.info("From dataset instances, %s will be considered for vocabulary creation.",
                 ", ".join(datasets_for_vocab_creation))
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     vocab = Vocabulary.from_params(
             params.pop("vocabulary", {}),
             (instance for key, dataset in all_datasets.items()
