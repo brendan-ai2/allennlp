@@ -357,6 +357,7 @@ class Vocabulary(Registrable):
         of what the other parameters do.
         """
         logger.info("Fitting token dictionary from dataset.")
+        logger.info("from_instance")
         namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         for instance in Tqdm.tqdm(instances):
             instance.count_vocab_items(namespace_token_counts)
@@ -545,6 +546,7 @@ class Vocabulary(Registrable):
         params.assert_empty("Vocabulary - from dataset")
 
         logger.info("Fitting token dictionary from dataset.")
+        logger.info("extend_from_instances")
         namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         for instance in Tqdm.tqdm(instances):
             instance.count_vocab_items(namespace_token_counts)
