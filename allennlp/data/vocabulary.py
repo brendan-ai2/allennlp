@@ -384,6 +384,7 @@ class Vocabulary(Registrable):
                 for instance in Tqdm.tqdm(instances):
                     print(instance)
                     instance.count_vocab_items(namespace_token_counts)
+                print(namespace_token_counts)
                 queue.put(namespace_token_counts)
 
             def merge_queue(queue):
