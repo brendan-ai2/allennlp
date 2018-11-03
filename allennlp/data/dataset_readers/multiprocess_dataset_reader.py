@@ -114,6 +114,7 @@ class MultiprocessDatasetReader(DatasetReader):
                     process.join()
                 processes.clear()
 
+                # TODO: There should be a way to consume from the queue in a multiprocess setting, I think.
                 return merger(output_queue)
 
             # TODO(brendanr): Define __iter__ in terms of do? Basically just have a no-op merger and yield up

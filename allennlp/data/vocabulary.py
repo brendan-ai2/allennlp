@@ -7,6 +7,8 @@ import codecs
 import logging
 import os
 from collections import defaultdict
+from functools import reduce
+from multiprocessing import Queue
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 from typing import TextIO  # pylint: disable=unused-import
 
@@ -24,6 +26,23 @@ DEFAULT_PADDING_TOKEN = "@@PADDING@@"
 DEFAULT_OOV_TOKEN = "@@UNKNOWN@@"
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'
 
+namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+
+def merge_dicts(dict1, dict2, resolve):
+    merged = {}
+    for k in dict1:
+        if k in dict2:
+            merged[k] = resolve(dict1[k], dict2[k])
+        else:
+            merged[k] = dict1[k]
+    for k in dict2:
+        if k not in dict1:
+            merged[k] = dict2[k]
+    return merged
+
+def merge_counts(counts1: Dict[str, Dict[str, int]],
+                 counts2: Dict[str, Dict[str, int]]) -> Dict[str, Dict[str, int]]:
+    return merge_dicts(counts1, counts2, lambda d1, d2: merge_dicts(d1, d2, lambda i, j: i + j))
 
 class _NamespaceDependentDefaultDict(defaultdict):
     """
@@ -342,7 +361,7 @@ class Vocabulary(Registrable):
 
     @classmethod
     def from_instances(cls,
-                       instances: Iterable['adi.Instance'],
+                       datasets: Iterable[Iterable['adi.Instance']],
                        min_count: Dict[str, int] = None,
                        max_vocab_size: Union[int, Dict[str, int]] = None,
                        non_padded_namespaces: Iterable[str] = DEFAULT_NON_PADDED_NAMESPACES,
@@ -359,11 +378,17 @@ class Vocabulary(Registrable):
         logger.info("Fitting token dictionary from dataset.")
         logger.info("from_instance")
         import pdb; pdb.set_trace()
-        namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        for instance in Tqdm.tqdm(instances):
-            instance.count_vocab_items(namespace_token_counts)
+        all_namespace_token_counts = []
+        for dataset in datasets:
+            def task(instances, queue: Queue):
+                namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+                for instance in instances:
+                    instance.count_vocab_items(namespace_token_counts)
+                queue.put(namespace_token_counts)
 
-        return cls(counter=namespace_token_counts,
+            all_namespace_token_counts.append(dataset.do(task, lambda queue: reduce(merge_counts, queue)))
+
+        return cls(counter=reduce(merge_counts, all_namespace_token_counts),
                    min_count=min_count,
                    max_vocab_size=max_vocab_size,
                    non_padded_namespaces=non_padded_namespaces,
@@ -374,7 +399,7 @@ class Vocabulary(Registrable):
 
     # There's enough logic here to require a custom from_params.
     @classmethod
-    def from_params(cls, params: Params, instances: Iterable['adi.Instance'] = None):  # type: ignore
+    def from_params(cls, params: Params, datasets: Iterable[Iterable['adi.Instance']] = None):  # type: ignore
         """
         There are two possible ways to build a vocabulary; from a
         collection of instances, using :func:`Vocabulary.from_instances`, or
@@ -408,19 +433,19 @@ class Vocabulary(Registrable):
         # so that most users can continue doing what they were doing.
         vocab_type = params.pop("type", None)
         if vocab_type is not None:
-            return cls.by_name(vocab_type).from_params(params=params, instances=instances)
+            return cls.by_name(vocab_type).from_params(params=params, datasets=datasets)
 
         extend = params.pop("extend", False)
         vocabulary_directory = params.pop("directory_path", None)
-        if not vocabulary_directory and not instances:
+        if not vocabulary_directory and not datasets:
             raise ConfigurationError("You must provide either a Params object containing a "
-                                     "vocab_directory key or a Dataset to build a vocabulary from.")
-        if extend and not instances:
-            raise ConfigurationError("'extend' is true but there are not instances passed to extend.")
+                                     "vocab_directory key or a list of Dataset to build a vocabulary from.")
+        if extend and not datasets:
+            raise ConfigurationError("'extend' is true but there are no datasets passed to extend.")
         if extend and not vocabulary_directory:
             raise ConfigurationError("'extend' is true but there is not 'directory_path' to extend from.")
 
-        if vocabulary_directory and instances:
+        if vocabulary_directory and datasets:
             if extend:
                 logger.info("Loading Vocab from files and extending it with dataset.")
             else:
@@ -432,7 +457,7 @@ class Vocabulary(Registrable):
                 params.assert_empty("Vocabulary - from files")
                 return vocab
         if extend:
-            vocab.extend_from_instances(params, instances=instances)
+            vocab.extend_from_instances(params, datasets=datasets)
             return vocab
         min_count = params.pop("min_count", None)
         max_vocab_size = pop_max_vocab_size(params)
@@ -442,7 +467,7 @@ class Vocabulary(Registrable):
         only_include_pretrained_words = params.pop_bool("only_include_pretrained_words", False)
         tokens_to_add = params.pop("tokens_to_add", None)
         params.assert_empty("Vocabulary - from dataset")
-        return Vocabulary.from_instances(instances=instances,
+        return Vocabulary.from_instances(datasets=datasets,
                                          min_count=min_count,
                                          max_vocab_size=max_vocab_size,
                                          non_padded_namespaces=non_padded_namespaces,
