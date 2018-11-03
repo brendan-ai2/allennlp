@@ -103,7 +103,6 @@ class MultiprocessDatasetReader(DatasetReader):
         # TODO(brendanr): Fix inheritance
         class Dataset(Iterable[Instance]):
             def __init__(self) :
-                self.num_workers = outer_self.num_workers
                 self.manager = Manager()
 
             def do(self,
@@ -120,12 +119,12 @@ class MultiprocessDatasetReader(DatasetReader):
                         input_queue.put(shard)
 
                 # Then put a None per worker to signify no more files.
-                for _ in range(self.num_workers):
+                for _ in range(outer_self.num_workers):
                     input_queue.put(None)
 
                 processes: List[Process] = []
                 output_queue = self.manager.Queue(outer_self.output_queue_size)
-                for worker_id in range(self.num_workers):
+                for worker_id in range(outer_self.num_workers):
                     process = Process(target=_worker,
                                       args=(task, outer_self.reader, input_queue, output_queue, worker_id))
                     logger.info(f"starting worker {worker_id}")
@@ -153,34 +152,34 @@ class MultiprocessDatasetReader(DatasetReader):
                 num_shards = len(shards)
 
                 # If we want multiple epochs per read, put shards in the queue multiple times.
-                input_queue = self.manager.Queue(num_shards * self.epochs_per_read + self.num_workers)
-                for _ in range(self.epochs_per_read):
+                input_queue = self.manager.Queue(num_shards * outer_self.epochs_per_read + outer_self.num_workers)
+                for _ in range(outer_self.epochs_per_read):
                     random.shuffle(shards)
                     for shard in shards:
                         input_queue.put(shard)
 
                 # Then put a None per worker to signify no more files.
-                for _ in range(self.num_workers):
+                for _ in range(outer_self.num_workers):
                     input_queue.put(None)
 
                 processes: List[Process] = []
                 num_finished = 0
                 output_queue = self.manager.Queue(outer_self.output_queue_size)
 
-                for worker_id in range(self.num_workers):
+                for worker_id in range(outer_self.num_workers):
                     process = Process(target=_iter_worker,
-                                      args=(self.reader, input_queue, output_queue, worker_id))
+                                      args=(outer_self.reader, input_queue, output_queue, worker_id))
                     logger.info(f"starting worker {worker_id}")
                     process.start()
                     processes.append(process)
 
                 # Keep going as long as not all the workers have finished.
-                while num_finished < self.num_workers:
+                while num_finished < outer_self.num_workers:
                     item = output_queue.get()
                     if isinstance(item, int):
                         # Means a worker has finished, so increment the finished count.
                         num_finished += 1
-                        logger.info(f"worker {item} finished ({num_finished}/{self.num_workers})")
+                        logger.info(f"worker {item} finished ({num_finished}/{outer_self.num_workers})")
                     else:
                         # Otherwise it's an ``Instance``, so yield it up.
                         yield item
