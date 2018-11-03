@@ -105,7 +105,7 @@ class MultiprocessDatasetReader(DatasetReader):
                 output_queue = self.manager.Queue(outer_self.output_queue_size)
                 for worker_id in range(self.num_workers):
                     process = Process(target=_worker,
-                                      args=(task, outer_self.reader, self.input_queue, output_queue, worker_id))
+                                      args=(task, outer_self.reader, input_queue, output_queue, worker_id))
                     logger.info(f"starting worker {worker_id}")
                     process.start()
                     processes.append(process)
