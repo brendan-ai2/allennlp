@@ -26,12 +26,14 @@
           }
         }
     },
-    "num_workers": 8,
+    "num_workers": 1,
     "output_queue_size": 100000
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   },
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
-  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  "train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
+  "validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
   "vocabulary": {
       "tokens_to_add": {
           "tokens": ["<s>", "</s>"],
