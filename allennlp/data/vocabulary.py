@@ -386,7 +386,12 @@ class Vocabulary(Registrable):
                 queue.put(namespace_token_counts)
 
             def merge_queue(queue):
-                return reduce(merge_counts, queue)
+                if queue.qsize() == 0:
+                    raise Exception("Can't reduce empty queue.")
+                cur = queue.get()
+                while queue.qsize() != 0:
+                    cur = merge_counts(cur, queue.get())
+                return cur
 
             all_namespace_token_counts.append(dataset.do(task, merge_queue))
 
