@@ -377,12 +377,11 @@ class Vocabulary(Registrable):
         """
         logger.info("Fitting token dictionary from dataset.")
         logger.info("from_instance")
-        import pdb; pdb.set_trace()
         all_namespace_token_counts = []
         for dataset in datasets:
             def task(instances, queue: Queue):
                 namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-                for instance in instances:
+                for instance in Tqdm.tqdm(instances):
                     instance.count_vocab_items(namespace_token_counts)
                 queue.put(namespace_token_counts)
 
