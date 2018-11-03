@@ -121,6 +121,7 @@ class MultiprocessDatasetReader(DatasetReader):
             # TODO(brendanr): Define __iter__ in terms of do? Basically just have a no-op merger and yield up
             # everthing using the strategy Joel used. Might need an extra class and some kind of wrapper for the output
             # objects to detect when everything is finished.
-            #def __iter__(self) -> Iterator[Instance]:
+            def __iter__(self) -> Iterator[Instance]:
+                raise NotImplementedError("Fixme...")
 
         return Dataset()
