@@ -1,4 +1,4 @@
-from typing import List, Iterable, Iterator
+from typing import List, Iterable, Iterator, Callable, Any
 import glob
 import logging
 import random
@@ -11,28 +11,20 @@ from allennlp.data.instance import Instance
 logger = log_to_stderr()  # pylint: disable=invalid-name
 logger.setLevel(logging.INFO)
 
-def _worker(reader: DatasetReader,
+def _worker(task: Callable[[[Iterable[Instance]], Queue], None],
+            reader: DatasetReader,
             input_queue: Queue,
             output_queue: Queue,
             index: int) -> None:
-    """
-    A worker that pulls filenames off the input queue, uses the dataset reader
-    to read them, and places the generated instances on the output queue.
-    When there are no filenames left on the input queue, it puts its ``index``
-    on the output queue and doesn't do anything else.
-    """
     # Keep going until you get a file_path that's None.
     while True:
         file_path = input_queue.get()
         if file_path is None:
-            # Put my index on the queue to signify that I'm finished
-            output_queue.put(index)
+            logger.info(f"worker {index} finished")
             break
 
         logger.info(f"reading instances from {file_path}")
-        for instance in reader.read(file_path):
-            output_queue.put(instance)
-
+        task(reader.read(file_path), output_queue)
 
 
 @DatasetReader.register('multiprocess')
@@ -63,6 +55,7 @@ class MultiprocessDatasetReader(DatasetReader):
                  base_reader: DatasetReader,
                  num_workers: int,
                  epochs_per_read: int = 1,
+                 # TODO: Warning about queue size serving multiple purposes effectively.
                  output_queue_size: int = 1000) -> None:
         # Multiprocess reader is intrinsically lazy.
         super().__init__(lazy=True)
@@ -85,66 +78,47 @@ class MultiprocessDatasetReader(DatasetReader):
     def read(self, file_path: str) -> Iterable[Instance]:
         outer_self = self
 
-        class QIterable(Iterable[Instance]):
-            """
-            You can't set attributes on Iterators, so this is just a dumb wrapper
-            that exposes the output_queue. Currently you probably shouldn't touch
-            the output queue, but this is done with an eye toward implementing
-            a data iterator that can read directly from the queue (instead of having
-            to use the _instances iterator we define here.)
-            """
-            def __init__(self) -> None:
-                self.manager = Manager()
-                self.output_queue = self.manager.Queue(outer_self.output_queue_size)
+        class Dataset:
+            def __init__(self) :
                 self.num_workers = outer_self.num_workers
+                self.manager = Manager()
 
-            def __iter__(self) -> Iterator[Instance]:
-                # pylint: disable=protected-access
-                return outer_self._instances(file_path, self.manager, self.output_queue)
+                shards = glob.glob(file_path)
+                num_shards = len(shards)
 
-        return QIterable()
+                # If we want multiple epochs per read, put shards in the queue multiple times.
+                self.input_queue = self.manager.Queue(num_shards * self.epochs_per_read + self.num_workers)
+                for _ in range(self.epochs_per_read):
+                    random.shuffle(shards)
+                    for shard in shards:
+                        self.input_queue.put(shard)
 
-    def _instances(self, file_path: str, manager: Manager, output_queue: Queue) -> Iterator[Instance]:
-        """
-        A generator that reads instances off the output queue and yields them up
-        until none are left (signified by all ``num_workers`` workers putting their
-        ids into the queue).
-        """
-        shards = glob.glob(file_path)
-        num_shards = len(shards)
+                # Then put a None per worker to signify no more files.
+                for _ in range(self.num_workers):
+                    self.input_queue.put(None)
 
-        # If we want multiple epochs per read, put shards in the queue multiple times.
-        input_queue = manager.Queue(num_shards * self.epochs_per_read + self.num_workers)
-        for _ in range(self.epochs_per_read):
-            random.shuffle(shards)
-            for shard in shards:
-                input_queue.put(shard)
+            def do(self,
+                   task: Callable[[[Iterable[Instance]], Queue], None],
+                   merger: Callable[[Queue], Any]) -> Any:
+                processes: List[Process] = []
 
-        # Then put a None per worker to signify no more files.
-        for _ in range(self.num_workers):
-            input_queue.put(None)
+                output_queue = self.manager.Queue(outer_self.output_queue_size)
+                for worker_id in range(self.num_workers):
+                    process = Process(target=_worker,
+                                      args=(task, self.reader, self.input_queue, output_queue, worker_id))
+                    logger.info(f"starting worker {worker_id}")
+                    process.start()
+                    processes.append(process)
 
-        processes: List[Process] = []
-        num_finished = 0
+                for process in processes:
+                    process.join()
+                processes.clear()
 
-        for worker_id in range(self.num_workers):
-            process = Process(target=_worker,
-                              args=(self.reader, input_queue, output_queue, worker_id))
-            logger.info(f"starting worker {worker_id}")
-            process.start()
-            processes.append(process)
+                return merger(output_queue)
 
-        # Keep going as long as not all the workers have finished.
-        while num_finished < self.num_workers:
-            item = output_queue.get()
-            if isinstance(item, int):
-                # Means a worker has finished, so increment the finished count.
-                num_finished += 1
-                logger.info(f"worker {item} finished ({num_finished}/{self.num_workers})")
-            else:
-                # Otherwise it's an ``Instance``, so yield it up.
-                yield item
+            # TODO(brendanr): Define __iter__ in terms of do? Basically just have a no-op merger and yield up
+            # everthing using the strategy Joel used. Might need an extra class and some kind of wrapper for the output
+            # objects to detect when everything is finished.
+            #def __iter__(self) -> Iterator[Instance]:
 
-        for process in processes:
-            process.join()
-        processes.clear()
+        return Dataset()
