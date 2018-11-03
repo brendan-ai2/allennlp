@@ -371,9 +371,9 @@ class Vocabulary(Registrable):
             def task(instances, queue: Queue):
                 namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(count_factory)
                 for instance in Tqdm.tqdm(instances):
-                    print(instance)
+                    #print(instance) #DELETEME
                     instance.count_vocab_items(namespace_token_counts)
-                print(namespace_token_counts)
+                #print(namespace_token_counts) #DELETEME
                 queue.put(namespace_token_counts)
 
             def merge_queue(queue):
