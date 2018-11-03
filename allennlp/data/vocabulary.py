@@ -382,6 +382,7 @@ class Vocabulary(Registrable):
             def task(instances, queue: Queue):
                 namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
                 for instance in Tqdm.tqdm(instances):
+                    print(instance)
                     instance.count_vocab_items(namespace_token_counts)
                 queue.put(namespace_token_counts)
 
