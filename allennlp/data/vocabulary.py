@@ -26,8 +26,6 @@ DEFAULT_PADDING_TOKEN = "@@PADDING@@"
 DEFAULT_OOV_TOKEN = "@@UNKNOWN@@"
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'
 
-namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-
 def merge_dicts(dict1, dict2, resolve):
     merged = {}
     for k in dict1:
@@ -364,23 +362,8 @@ class Vocabulary(Registrable):
             assert self._oov_token in self._token_to_index[namespace], "OOV token not found!"
 
     @classmethod
-    def from_instances(cls,
-                       datasets: Iterable[Iterable['adi.Instance']],
-                       min_count: Dict[str, int] = None,
-                       max_vocab_size: Union[int, Dict[str, int]] = None,
-                       non_padded_namespaces: Iterable[str] = DEFAULT_NON_PADDED_NAMESPACES,
-                       pretrained_files: Optional[Dict[str, str]] = None,
-                       only_include_pretrained_words: bool = False,
-                       tokens_to_add: Dict[str, List[str]] = None,
-                       min_pretrained_embeddings: Dict[str, int] = None) -> 'Vocabulary':
-        """
-        Constructs a vocabulary given a collection of `Instances` and some parameters.
-        We count all of the vocabulary items in the instances, then pass those counts
-        and the other parameters, to :func:`__init__`.  See that method for a description
-        of what the other parameters do.
-        """
-        logger.info("Fitting token dictionary from dataset.")
-        logger.info("from_instance")
+    def build_token_counts(cls,
+                           datasets: Iterable[Iterable['adi.Instance']]):
         all_namespace_token_counts = []
         for dataset in datasets:
             def task(instances, queue: Queue):
@@ -400,8 +383,27 @@ class Vocabulary(Registrable):
                 return cur
 
             all_namespace_token_counts.append(dataset.do(task, merge_queue))
+        return reduce(merge_counts, all_namespace_token_counts),
 
-        return cls(counter=reduce(merge_counts, all_namespace_token_counts),
+    @classmethod
+    def from_instances(cls,
+                       datasets: Iterable[Iterable['adi.Instance']],
+                       min_count: Dict[str, int] = None,
+                       max_vocab_size: Union[int, Dict[str, int]] = None,
+                       non_padded_namespaces: Iterable[str] = DEFAULT_NON_PADDED_NAMESPACES,
+                       pretrained_files: Optional[Dict[str, str]] = None,
+                       only_include_pretrained_words: bool = False,
+                       tokens_to_add: Dict[str, List[str]] = None,
+                       min_pretrained_embeddings: Dict[str, int] = None) -> 'Vocabulary':
+        """
+        Constructs a vocabulary given a collection of `Instances` and some parameters.
+        We count all of the vocabulary items in the instances, then pass those counts
+        and the other parameters, to :func:`__init__`.  See that method for a description
+        of what the other parameters do.
+        """
+        logger.info("Fitting token dictionary from dataset.")
+        logger.info("from_instance")
+        return cls(counter=cls.build_token_counts(datasets),
                    min_count=min_count,
                    max_vocab_size=max_vocab_size,
                    non_padded_namespaces=non_padded_namespaces,
@@ -571,7 +573,7 @@ class Vocabulary(Registrable):
 
     def extend_from_instances(self,
                               params: Params,
-                              instances: Iterable['adi.Instance'] = ()) -> None:
+                              datasets: Iterable[Iterable['adi.Instance']] = ()) -> None:
         """
         Extends an already generated vocabulary using a collection of instances.
         """
@@ -586,10 +588,7 @@ class Vocabulary(Registrable):
 
         logger.info("Fitting token dictionary from dataset.")
         logger.info("extend_from_instances")
-        namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        for instance in Tqdm.tqdm(instances):
-            instance.count_vocab_items(namespace_token_counts)
-        self._extend(counter=namespace_token_counts,
+        self._extend(counter=self.build_token_counts(datasets),
                      min_count=min_count,
                      max_vocab_size=max_vocab_size,
                      non_padded_namespaces=non_padded_namespaces,
