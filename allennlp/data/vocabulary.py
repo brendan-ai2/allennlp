@@ -3,6 +3,8 @@ A Vocabulary maps strings to integers, allowing for strings to be mapped to an
 out-of-vocabulary token.
 """
 
+import pdb
+
 import codecs
 import logging
 import os
@@ -383,7 +385,7 @@ class Vocabulary(Registrable):
                 return cur
 
             all_namespace_token_counts.append(dataset.do(task, merge_queue))
-        return reduce(merge_counts, all_namespace_token_counts),
+        return reduce(merge_counts, all_namespace_token_counts)
 
     @classmethod
     def from_instances(cls,
@@ -519,7 +521,6 @@ class Vocabulary(Registrable):
         self._retained_counter = counter
         # Make sure vocabulary extension is safe.
         current_namespaces = {*self._token_to_index}
-        import pdb; pdb.set_trace()
         extension_namespaces = {*counter, *tokens_to_add}
 
         for namespace in current_namespaces & extension_namespaces:
