@@ -103,12 +103,12 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
                 ", ".join(datasets_for_vocab_creation))
 
     import pdb; pdb.set_trace()
-    instances = [instance for key, dataset in all_datasets.items()
-                 for instance in dataset
-                 if key in datasets_for_vocab_creation]
+    filtered_datasets = [dataset for key, dataset in all_datasets.items()
+                         if key in datasets_for_vocab_creation]
 
-    vocab = Vocabulary.from_params(vocab_params, instances)
-    dataset = Batch(instances)
+    vocab = Vocabulary.from_params(vocab_params, filtered_datasets)
+    # FIXME
+    dataset = Batch([])
     dataset.index_instances(vocab)
     dataset.print_statistics()
     vocab.print_statistics()
