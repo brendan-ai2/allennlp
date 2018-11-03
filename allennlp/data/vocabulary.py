@@ -385,7 +385,10 @@ class Vocabulary(Registrable):
                     instance.count_vocab_items(namespace_token_counts)
                 queue.put(namespace_token_counts)
 
-            all_namespace_token_counts.append(dataset.do(task, lambda queue: reduce(merge_counts, queue)))
+            def merge_queue(queue):
+                return reduce(merge_counts, queue)
+
+            all_namespace_token_counts.append(dataset.do(task, merge_queue))
 
         return cls(counter=reduce(merge_counts, all_namespace_token_counts),
                    min_count=min_count,
