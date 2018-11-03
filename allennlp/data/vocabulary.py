@@ -44,6 +44,10 @@ def merge_counts(counts1: Dict[str, Dict[str, int]],
                  counts2: Dict[str, Dict[str, int]]) -> Dict[str, Dict[str, int]]:
     return merge_dicts(counts1, counts2, lambda d1, d2: merge_dicts(d1, d2, lambda i, j: i + j))
 
+# Can't pickle lambdas.
+def count_factory():
+    return defaultdict(int)
+
 class _NamespaceDependentDefaultDict(defaultdict):
     """
     This is a `defaultdict
@@ -379,9 +383,6 @@ class Vocabulary(Registrable):
         logger.info("from_instance")
         all_namespace_token_counts = []
         for dataset in datasets:
-            # Can't pickle lambdas.
-            def count_factory():
-                return defaultdict(int)
             def task(instances, queue: Queue):
                 namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(count_factory)
                 for instance in Tqdm.tqdm(instances):
