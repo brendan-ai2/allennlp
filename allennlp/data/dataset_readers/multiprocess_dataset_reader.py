@@ -78,7 +78,8 @@ class MultiprocessDatasetReader(DatasetReader):
     def read(self, file_path: str) -> Iterable[Instance]:
         outer_self = self
 
-        class Dataset:
+        # TODO(brendanr): Fix inheritance
+        class Dataset(Iterable[Instance]):
             def __init__(self) :
                 self.num_workers = outer_self.num_workers
                 self.manager = Manager()
