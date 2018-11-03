@@ -84,25 +84,24 @@ class MultiprocessDatasetReader(DatasetReader):
                 self.num_workers = outer_self.num_workers
                 self.manager = Manager()
 
+            def do(self,
+                   task: Callable[[Iterable[Instance], Queue], None],
+                   merger: Callable[[Queue], Any]) -> Any:
                 shards = glob.glob(file_path)
                 num_shards = len(shards)
 
                 # If we want multiple epochs per read, put shards in the queue multiple times.
-                self.input_queue = self.manager.Queue(num_shards * outer_self.epochs_per_read + outer_self.num_workers)
+                input_queue = self.manager.Queue(num_shards * outer_self.epochs_per_read + outer_self.num_workers)
                 for _ in range(outer_self.epochs_per_read):
                     random.shuffle(shards)
                     for shard in shards:
-                        self.input_queue.put(shard)
+                        input_queue.put(shard)
 
                 # Then put a None per worker to signify no more files.
                 for _ in range(self.num_workers):
-                    self.input_queue.put(None)
+                    input_queue.put(None)
 
-            def do(self,
-                   task: Callable[[Iterable[Instance], Queue], None],
-                   merger: Callable[[Queue], Any]) -> Any:
                 processes: List[Process] = []
-
                 output_queue = self.manager.Queue(outer_self.output_queue_size)
                 for worker_id in range(self.num_workers):
                     process = Process(target=_worker,
