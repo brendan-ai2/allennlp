@@ -87,8 +87,8 @@ class MultiprocessDatasetReader(DatasetReader):
                 num_shards = len(shards)
 
                 # If we want multiple epochs per read, put shards in the queue multiple times.
-                self.input_queue = self.manager.Queue(num_shards * self.epochs_per_read + self.num_workers)
-                for _ in range(self.epochs_per_read):
+                self.input_queue = self.manager.Queue(num_shards * outer_self.epochs_per_read + outer_self.num_workers)
+                for _ in range(outer_self.epochs_per_read):
                     random.shuffle(shards)
                     for shard in shards:
                         self.input_queue.put(shard)
