@@ -108,6 +108,7 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
 
     vocab = Vocabulary.from_params(vocab_params, filtered_datasets)
     # FIXME
+    import pdb; pdb.set_trace()
     dataset = Batch([])
     dataset.index_instances(vocab)
     dataset.print_statistics()
