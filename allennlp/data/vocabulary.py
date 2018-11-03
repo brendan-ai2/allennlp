@@ -519,6 +519,7 @@ class Vocabulary(Registrable):
         self._retained_counter = counter
         # Make sure vocabulary extension is safe.
         current_namespaces = {*self._token_to_index}
+        import pdb; pdb.set_trace()
         extension_namespaces = {*counter, *tokens_to_add}
 
         for namespace in current_namespaces & extension_namespaces:
