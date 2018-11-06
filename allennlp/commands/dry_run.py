@@ -109,7 +109,9 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
     vocab = Vocabulary.from_params(vocab_params, filtered_datasets)
     # FIXME
     import pdb; pdb.set_trace()
+    # TODO(brendanr): Wait, does this even make sense? I think Batch is being abused here.
     dataset = Batch([instance for d in filtered_datasets for instance in d])
+    # TODO(brendanr): Is this normally done inline?
     dataset.index_instances(vocab)
     dataset.print_statistics()
     vocab.print_statistics()
