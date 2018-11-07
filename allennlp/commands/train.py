@@ -50,6 +50,7 @@ from allennlp.common import Params
 from allennlp.common.util import prepare_environment, prepare_global_logging, \
                                  get_frozen_and_tunable_parameter_names, dump_metrics
 from allennlp.data import Vocabulary
+from allennlp.data.dataset import Dataset
 from allennlp.data.instance import Instance
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.iterators.data_iterator import DataIterator
@@ -142,7 +143,7 @@ def train_model_from_file(parameter_filename: str,
     return train_model(params, serialization_dir, file_friendly_logging, recover, force)
 
 
-def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
+def datasets_from_params(params: Params) -> Dict[str, Dataset]:
     """
     Load all the datasets specified by the config.
     """
@@ -156,20 +157,20 @@ def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
 
     train_data_path = params.pop('train_data_path')
     logger.info("Reading training data from %s", train_data_path)
-    train_data = dataset_reader.read(train_data_path)
+    train_data = dataset_reader.dataset(train_data_path)
 
-    datasets: Dict[str, Iterable[Instance]] = {"train": train_data}
+    datasets: Dict[str, Dataset] = {"train": train_data}
 
     validation_data_path = params.pop('validation_data_path', None)
     if validation_data_path is not None:
         logger.info("Reading validation data from %s", validation_data_path)
-        validation_data = validation_and_test_dataset_reader.read(validation_data_path)
+        validation_data = validation_and_test_dataset_reader.dataset(validation_data_path)
         datasets["validation"] = validation_data
 
     test_data_path = params.pop("test_data_path", None)
     if test_data_path is not None:
         logger.info("Reading test data from %s", test_data_path)
-        test_data = validation_and_test_dataset_reader.read(test_data_path)
+        test_data = validation_and_test_dataset_reader.dataset(test_data_path)
         datasets["test"] = test_data
 
     return datasets

@@ -1,6 +1,7 @@
 from typing import Iterable, Iterator, Callable
 import logging
 
+from allennlp.data.dataset import Dataset, UnshardedDataset
 from allennlp.data.instance import Instance
 from allennlp.common import Tqdm
 from allennlp.common.checks import ConfigurationError
@@ -84,6 +85,9 @@ class DatasetReader(Registrable):
         read a dataset in a lazy way, if they so choose.
         """
         raise NotImplementedError
+
+    def dataset(self, file_path: str) -> Dataset:
+        return UnshardedDataset(self, file_path)
 
     def text_to_instance(self, *inputs) -> Instance:
         """

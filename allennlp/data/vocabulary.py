@@ -19,7 +19,7 @@ from allennlp.common import Params, Registrable
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.tqdm import Tqdm
 from allennlp.data import instance as adi  # pylint: disable=unused-import
-
+from allennlp.data.dataset import Dataset, EmptyDataset
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -365,31 +365,19 @@ class Vocabulary(Registrable):
 
     @classmethod
     def build_token_counts(cls,
-                           datasets: Iterable[Iterable['adi.Instance']]):
-        all_namespace_token_counts = []
-        for dataset in datasets:
-            def task(instances, queue: Queue):
-                namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(count_factory)
-                for instance in Tqdm.tqdm(instances):
-                    #print(instance) #DELETEME
-                    instance.count_vocab_items(namespace_token_counts)
-                #print(namespace_token_counts) #DELETEME
-                queue.put(namespace_token_counts)
+                           dataset: Dataset):
+        def count_tokens(instances):
+            namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(count_factory)
+            for instance in Tqdm.tqdm(instances):
+                instance.count_vocab_items(namespace_token_counts)
+            return [namespace_token_counts]
 
-            def merge_queue(queue):
-                if queue.qsize() == 0:
-                    raise Exception("Can't reduce empty queue.")
-                cur = queue.get()
-                while queue.qsize() != 0:
-                    cur = merge_counts(cur, queue.get())
-                return cur
-
-            all_namespace_token_counts.append(dataset.do(task, merge_queue))
+        all_namespace_token_counts = dataset.map_partitions(count_tokens)
         return reduce(merge_counts, all_namespace_token_counts)
 
     @classmethod
     def from_instances(cls,
-                       datasets: Iterable[Iterable['adi.Instance']],
+                       dataset: Dataset,
                        min_count: Dict[str, int] = None,
                        max_vocab_size: Union[int, Dict[str, int]] = None,
                        non_padded_namespaces: Iterable[str] = DEFAULT_NON_PADDED_NAMESPACES,
@@ -405,7 +393,7 @@ class Vocabulary(Registrable):
         """
         logger.info("Fitting token dictionary from dataset.")
         logger.info("from_instance")
-        return cls(counter=cls.build_token_counts(datasets),
+        return cls(counter=cls.build_token_counts(dataset),
                    min_count=min_count,
                    max_vocab_size=max_vocab_size,
                    non_padded_namespaces=non_padded_namespaces,
@@ -416,7 +404,7 @@ class Vocabulary(Registrable):
 
     # There's enough logic here to require a custom from_params.
     @classmethod
-    def from_params(cls, params: Params, datasets: Iterable[Iterable['adi.Instance']] = None):  # type: ignore
+    def from_params(cls, params: Params, dataset: Dataset = None):  # type: ignore
         """
         There are two possible ways to build a vocabulary; from a
         collection of instances, using :func:`Vocabulary.from_instances`, or
@@ -454,15 +442,15 @@ class Vocabulary(Registrable):
 
         extend = params.pop("extend", False)
         vocabulary_directory = params.pop("directory_path", None)
-        if not vocabulary_directory and not datasets:
+        if not vocabulary_directory and not dataset:
             raise ConfigurationError("You must provide either a Params object containing a "
                                      "vocab_directory key or a list of Dataset to build a vocabulary from.")
-        if extend and not datasets:
+        if extend and not dataset:
             raise ConfigurationError("'extend' is true but there are no datasets passed to extend.")
         if extend and not vocabulary_directory:
             raise ConfigurationError("'extend' is true but there is not 'directory_path' to extend from.")
 
-        if vocabulary_directory and datasets:
+        if vocabulary_directory and dataset:
             if extend:
                 logger.info("Loading Vocab from files and extending it with dataset.")
             else:
@@ -474,7 +462,7 @@ class Vocabulary(Registrable):
                 params.assert_empty("Vocabulary - from files")
                 return vocab
         if extend:
-            vocab.extend_from_instances(params, datasets=datasets)
+            vocab.extend_from_instances(params, dataset=dataset)
             return vocab
         min_count = params.pop("min_count", None)
         max_vocab_size = pop_max_vocab_size(params)
@@ -484,7 +472,7 @@ class Vocabulary(Registrable):
         only_include_pretrained_words = params.pop_bool("only_include_pretrained_words", False)
         tokens_to_add = params.pop("tokens_to_add", None)
         params.assert_empty("Vocabulary - from dataset")
-        return Vocabulary.from_instances(datasets=datasets,
+        return Vocabulary.from_instances(dataset=dataset,
                                          min_count=min_count,
                                          max_vocab_size=max_vocab_size,
                                          non_padded_namespaces=non_padded_namespaces,
@@ -575,7 +563,7 @@ class Vocabulary(Registrable):
 
     def extend_from_instances(self,
                               params: Params,
-                              datasets: Iterable[Iterable['adi.Instance']] = ()) -> None:
+                              dataset: Dataset = EmptyDataset()) -> None:
         """
         Extends an already generated vocabulary using a collection of instances.
         """
@@ -590,7 +578,7 @@ class Vocabulary(Registrable):
 
         logger.info("Fitting token dictionary from dataset.")
         logger.info("extend_from_instances")
-        self._extend(counter=self.build_token_counts(datasets),
+        self._extend(counter=self.build_token_counts(dataset),
                      min_count=min_count,
                      max_vocab_size=max_vocab_size,
                      non_padded_namespaces=non_padded_namespaces,
