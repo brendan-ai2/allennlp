@@ -438,7 +438,7 @@ class Vocabulary(Registrable):
         # so that most users can continue doing what they were doing.
         vocab_type = params.pop("type", None)
         if vocab_type is not None:
-            return cls.by_name(vocab_type).from_params(params=params, datasets=datasets)
+            return cls.by_name(vocab_type).from_params(params=params, dataset=dataset)
 
         extend = params.pop("extend", False)
         vocabulary_directory = params.pop("directory_path", None)

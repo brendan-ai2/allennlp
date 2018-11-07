@@ -15,7 +15,7 @@ import torch
 
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.util import ensure_list
-from allennlp.data import DatasetReader
+from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.instance import Instance
 from allennlp.data.vocabulary import Vocabulary
 
@@ -33,17 +33,17 @@ class EmptyDataset(Dataset):
         return []
 
 class UnshardedDataset(Dataset):
-    def __init__(self, reader: DatasetReader, file_path: str):
+    def __init__(self, reader: DatasetReader, file_path: str) -> None:
         self._reader = reader
         self._file_path = file_path
 
     def map_partitions(self,
                        f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
-        iterable = self._reader.read(self.file_path)
+        iterable = self._reader.read(self._file_path)
         return f(iterable)
 
 class CombinedDataset(Dataset):
-    def __init__(self, datasets):
+    def __init__(self, datasets) -> None:
         self._datasets = datasets
 
     def map_partitions(self,
@@ -95,7 +95,7 @@ def _worker(f: Callable[[Iterable[Instance]], Iterable],
         for element in iterable:
             output_queue.put(element)
 
-class ShardedDataset():
+class ShardedDataset(Dataset):
     def __init__(self, file_path, reader, num_workers, epochs_per_read, output_queue_size):
         # TODO(brendanr): How many of these do we really need? Maybe use a singleton?
         self.manager = Manager()

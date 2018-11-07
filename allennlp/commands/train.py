@@ -50,7 +50,7 @@ from allennlp.common import Params
 from allennlp.common.util import prepare_environment, prepare_global_logging, \
                                  get_frozen_and_tunable_parameter_names, dump_metrics
 from allennlp.data import Vocabulary
-from allennlp.data.dataset import Dataset
+from allennlp.data.dataset import Dataset, CombinedDataset
 from allennlp.data.instance import Instance
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.iterators.data_iterator import DataIterator
@@ -294,12 +294,11 @@ def train_model(params: Params,
 
     logger.info("From dataset instances, %s will be considered for vocabulary creation.",
                 ", ".join(datasets_for_vocab_creation))
-    #import pdb; pdb.set_trace()
+    filtered_dataset = CombinedDataset([dataset for key, dataset in all_datasets.items()
+                                        if key in datasets_for_vocab_creation])
     vocab = Vocabulary.from_params(
-            params.pop("vocabulary", {}),
-            (instance for key, dataset in all_datasets.items()
-             for instance in dataset
-             if key in datasets_for_vocab_creation)
+        params.pop("vocabulary", {}),
+        filtered_dataset
     )
 
     model = Model.from_params(vocab=vocab, params=params.pop('model'))
