@@ -37,7 +37,7 @@ class TestMultiprocessDatasetReader(AllenNlpTestCase):
         self.glob = str(self.TEST_DIR / 'sequence_tagging_*.tsv')
 
         # For some of the tests we need a vocab, we'll just use the base_reader for that.
-        self.vocab = Vocabulary.from_instances(self.base_reader.read(str(base_file_path)))
+        self.vocab = Vocabulary.from_instances(self.base_reader.dataset(str(base_file_path)))
 
     def test_multiprocess_read(self):
         reader = MultiprocessDatasetReader(base_reader=self.base_reader, num_workers=4)

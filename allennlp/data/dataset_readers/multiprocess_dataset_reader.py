@@ -64,7 +64,7 @@ class MultiprocessDatasetReader(DatasetReader):
     def read(self, file_path: str) -> Iterable[Instance]:
         raise Exception("Don't call this!!")
         dataset = self.dataset(file_path)
-        return dataset.map_partitions(lambda x: x)
+        return dataset.read()
 
     def dataset(self, file_path: str) -> Dataset:
         return ShardedDataset(file_path, self.reader, self.num_workers, self.epochs_per_read, self.output_queue_size)

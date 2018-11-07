@@ -110,7 +110,7 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
     # FIXME
     import pdb; pdb.set_trace()
     # TODO(brendanr): Wait, does this even make sense? I think Batch is being abused here.
-    batch = Batch(filtered_dataset.map_partitions(lambda x: x))
+    batch = Batch(filtered_dataset.read())
     # TODO(brendanr): Is this normally done inline?
     batch.index_instances(vocab)
     batch.print_statistics()

@@ -27,6 +27,10 @@ class Dataset:
                       f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
         raise NotImplementedError
 
+    # Warning: Prefer map_partitions if you can structure your problem that way. More parallelism.
+    def read(self) -> Iterable[Instance]:
+        return self.map_partitions(lambda x: x)
+
 class EmptyDataset(Dataset):
     def map_partitions(self,
                        f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
