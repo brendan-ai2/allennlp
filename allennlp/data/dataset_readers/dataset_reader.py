@@ -183,11 +183,14 @@ def _worker(f: Callable[[Iterable[Instance]], Iterable],
     print("HERE 3333")
     # Keep going until you get a file_path that's None.
     while True:
+        print("HERE 3337")
         file_path = input_queue.get()
+        print("HERE 3338")
         if file_path is None:
             # Put the sentinel on the queue to signify that I'm finished
             output_queue.put(sentinel)
             break
+        print(file_path)
 
         logger.info(f"reading instances from {file_path}")
         iterable = f(reader.read(file_path))
@@ -212,6 +215,7 @@ class ShardedDataset(Dataset):
 
         # If we want multiple epochs per read, put shards in the queue multiple times.
         input_queue = self.manager.Queue(len(shards) * self.epochs_per_read + self.num_workers)
+        print(f"len: {len(shards) * self.epochs_per_read + self.num_workers}")
         for _ in range(self.epochs_per_read):
             random.shuffle(shards)
             for shard in shards:
@@ -228,6 +232,7 @@ class ShardedDataset(Dataset):
         #    print(el)
 
         print("HERE 1111")
+        import time; time.sleep(1)
 
         processes: List[Process] = []
         output_queue = self.manager.Queue(self.output_queue_size)

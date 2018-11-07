@@ -68,6 +68,7 @@ class TestMultiprocessDatasetReader(AllenNlpTestCase):
         all_instances = []
 
         dataset = reader.dataset(self.glob)
+        print("HELP!!")
         for instance in dataset.read():
             all_instances.append(instance)
 
