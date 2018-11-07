@@ -149,7 +149,10 @@ class Sentinel():
         self.id = id
 
 class IterableQueue(Iterable):
-    def __init__(self, queue, processes, num_workers):
+    def __init__(self, manager, queue, processes, num_workers):
+        # Hold a reference to the manager just so it's not garbage collected while we're still iterating.
+        # TODO: reconsider
+        self._manager = manager
         self._queue = queue
         self._processes = processes
         self._num_workers = num_workers
@@ -169,12 +172,15 @@ class IterableQueue(Iterable):
 
         for process in self._processes:
             process.join()
+        # TODO: reconsider
+        self._processes.clear()
 
 def _worker(f: Callable[[Iterable[Instance]], Iterable],
             reader: DatasetReader,
             input_queue: Queue,
             output_queue: Queue,
             sentinel: Sentinel) -> None:
+    print("HERE 3333")
     # Keep going until you get a file_path that's None.
     while True:
         file_path = input_queue.get()
@@ -186,6 +192,7 @@ def _worker(f: Callable[[Iterable[Instance]], Iterable],
         logger.info(f"reading instances from {file_path}")
         iterable = f(reader.read(file_path))
         for element in iterable:
+            #print(element)
             output_queue.put(element)
 
 class ShardedDataset(Dataset):
@@ -210,9 +217,17 @@ class ShardedDataset(Dataset):
             for shard in shards:
                 input_queue.put(shard)
 
+        #import pdb; pdb.set_trace()
+
         # Then put a None per worker to signify no more files.
         for _ in range(self.num_workers):
             input_queue.put(None)
+
+        #while not input_queue.empty():
+        #    el = input_queue.get()
+        #    print(el)
+
+        print("HERE 1111")
 
         processes: List[Process] = []
         output_queue = self.manager.Queue(self.output_queue_size)
@@ -223,4 +238,6 @@ class ShardedDataset(Dataset):
             process.start()
             processes.append(process)
 
-        return IterableQueue(output_queue, processes, self.num_workers)
+        print("HERE 22222")
+
+        return IterableQueue(self.manager, output_queue, processes, self.num_workers)
