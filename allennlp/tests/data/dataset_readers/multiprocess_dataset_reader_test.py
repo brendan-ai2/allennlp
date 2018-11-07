@@ -39,31 +39,8 @@ class TestMultiprocessDatasetReader(AllenNlpTestCase):
         # For some of the tests we need a vocab, we'll just use the base_reader for that.
         self.vocab = Vocabulary.from_instances(self.base_reader.dataset(str(base_file_path)))
 
-    def test_multiprocess_read(self):
-        reader = MultiprocessDatasetReader(base_reader=self.base_reader, num_workers=4)
-
-        all_instances = []
-
-        dataset = reader.dataset(self.glob)
-        for instance in dataset.read():
-            all_instances.append(instance)
-
-        # 100 files * 4 sentences / file
-        assert len(all_instances) == 100 * 4
-
-        counts = Counter(fingerprint(instance) for instance in all_instances)
-
-        # should have the exact same data 100 times
-        assert len(counts) == 4
-        assert counts[("cats", "are", "animals", ".", "N", "V", "N", "N")] == 100
-        assert counts[("dogs", "are", "animals", ".", "N", "V", "N", "N")] == 100
-        assert counts[("snakes", "are", "animals", ".", "N", "V", "N", "N")] == 100
-        assert counts[("birds", "are", "animals", ".", "N", "V", "N", "N")] == 100
-
-    # def test_multiple_epochs(self):
-    #     reader = MultiprocessDatasetReader(base_reader=self.base_reader,
-    #                                        num_workers=2,
-    #                                        epochs_per_read=3)
+    # def test_multiprocess_read(self):
+    #     reader = MultiprocessDatasetReader(base_reader=self.base_reader, num_workers=4)
     #
     #     all_instances = []
     #
@@ -71,17 +48,40 @@ class TestMultiprocessDatasetReader(AllenNlpTestCase):
     #     for instance in dataset.read():
     #         all_instances.append(instance)
     #
-    #     # 100 files * 4 sentences per file * 3 epochs
-    #     assert len(all_instances) == 100 * 4 * 3
+    #     # 100 files * 4 sentences / file
+    #     assert len(all_instances) == 100 * 4
     #
     #     counts = Counter(fingerprint(instance) for instance in all_instances)
     #
-    #     # should have the exact same data 100 * 3 times
+    #     # should have the exact same data 100 times
     #     assert len(counts) == 4
-    #     assert counts[("cats", "are", "animals", ".", "N", "V", "N", "N")] == 300
-    #     assert counts[("dogs", "are", "animals", ".", "N", "V", "N", "N")] == 300
-    #     assert counts[("snakes", "are", "animals", ".", "N", "V", "N", "N")] == 300
-    #     assert counts[("birds", "are", "animals", ".", "N", "V", "N", "N")] == 300
+    #     assert counts[("cats", "are", "animals", ".", "N", "V", "N", "N")] == 100
+    #     assert counts[("dogs", "are", "animals", ".", "N", "V", "N", "N")] == 100
+    #     assert counts[("snakes", "are", "animals", ".", "N", "V", "N", "N")] == 100
+    #     assert counts[("birds", "are", "animals", ".", "N", "V", "N", "N")] == 100
+
+    def test_multiple_epochs(self):
+        reader = MultiprocessDatasetReader(base_reader=self.base_reader,
+                                           num_workers=2,
+                                           epochs_per_read=3)
+
+        all_instances = []
+
+        dataset = reader.dataset(self.glob)
+        for instance in dataset.read():
+            all_instances.append(instance)
+
+        # 100 files * 4 sentences per file * 3 epochs
+        assert len(all_instances) == 100 * 4 * 3
+
+        counts = Counter(fingerprint(instance) for instance in all_instances)
+
+        # should have the exact same data 100 * 3 times
+        assert len(counts) == 4
+        assert counts[("cats", "are", "animals", ".", "N", "V", "N", "N")] == 300
+        assert counts[("dogs", "are", "animals", ".", "N", "V", "N", "N")] == 300
+        assert counts[("snakes", "are", "animals", ".", "N", "V", "N", "N")] == 300
+        assert counts[("birds", "are", "animals", ".", "N", "V", "N", "N")] == 300
 
 #    def test_with_iterator(self):
 #        reader = MultiprocessDatasetReader(base_reader=self.base_reader, num_workers=2)
