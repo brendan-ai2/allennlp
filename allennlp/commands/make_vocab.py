@@ -35,6 +35,7 @@ from allennlp.common.checks import ConfigurationError
 from allennlp.common.params import Params
 from allennlp.common.util import prepare_environment
 from allennlp.data import Vocabulary
+from allennlp.data.dataset import CombinedDataset
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -97,11 +98,10 @@ def make_vocab_from_params(params: Params, serialization_dir: str):
     logger.info("From dataset instances, %s will be considered for vocabulary creation.",
                 ", ".join(datasets_for_vocab_creation))
 
-    instances = [instance for key, dataset in all_datasets.items()
-                 for instance in dataset
-                 if key in datasets_for_vocab_creation]
+    filtered_dataset = CombinedDataset([dataset for key, dataset in all_datasets.items()
+                                        if key in datasets_for_vocab_creation])
 
-    vocab = Vocabulary.from_params(vocab_params, instances)
+    vocab = Vocabulary.from_params(vocab_params, filtered_dataset)
 
     logger.info(f"writing the vocabulary to {vocab_dir}.")
     vocab.save_to_files(vocab_dir)

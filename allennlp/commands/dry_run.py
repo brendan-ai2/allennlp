@@ -37,7 +37,7 @@ from allennlp.common.checks import ConfigurationError
 from allennlp.common.params import Params
 from allennlp.common.util import prepare_environment, get_frozen_and_tunable_parameter_names
 from allennlp.data import Vocabulary
-from allennlp.data.dataset import Batch
+from allennlp.data.dataset import Batch, CombinedDataset
 from allennlp.models import Model
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -103,17 +103,17 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
                 ", ".join(datasets_for_vocab_creation))
 
     import pdb; pdb.set_trace()
-    filtered_datasets = [dataset for key, dataset in all_datasets.items()
-                         if key in datasets_for_vocab_creation]
+    filtered_dataset = CombinedDataset([dataset for key, dataset in all_datasets.items()
+                                        if key in datasets_for_vocab_creation])
 
-    vocab = Vocabulary.from_params(vocab_params, filtered_datasets)
+    vocab = Vocabulary.from_params(vocab_params, filtered_dataset)
     # FIXME
     import pdb; pdb.set_trace()
     # TODO(brendanr): Wait, does this even make sense? I think Batch is being abused here.
-    dataset = Batch([instance for d in filtered_datasets for instance in d])
+    batch = Batch(filtered_dataset.map_partitions(lambda x: x))
     # TODO(brendanr): Is this normally done inline?
-    dataset.index_instances(vocab)
-    dataset.print_statistics()
+    batch.index_instances(vocab)
+    batch.print_statistics()
     vocab.print_statistics()
 
     logger.info(f"writing the vocabulary to {vocab_dir}.")
