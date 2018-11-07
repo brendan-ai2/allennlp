@@ -18,8 +18,6 @@ from allennlp.common.util import namespace_match
 from allennlp.common import Params, Registrable
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.tqdm import Tqdm
-from allennlp.data import instance as adi  # pylint: disable=unused-import
-from allennlp.data.dataset import Dataset, EmptyDataset
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -365,7 +363,7 @@ class Vocabulary(Registrable):
 
     @classmethod
     def build_token_counts(cls,
-                           dataset: Dataset):
+                           dataset):
         def count_tokens(instances):
             namespace_token_counts: Dict[str, Dict[str, int]] = defaultdict(count_factory)
             for instance in Tqdm.tqdm(instances):
@@ -377,7 +375,7 @@ class Vocabulary(Registrable):
 
     @classmethod
     def from_instances(cls,
-                       dataset: Dataset,
+                       dataset,
                        min_count: Dict[str, int] = None,
                        max_vocab_size: Union[int, Dict[str, int]] = None,
                        non_padded_namespaces: Iterable[str] = DEFAULT_NON_PADDED_NAMESPACES,
@@ -404,7 +402,7 @@ class Vocabulary(Registrable):
 
     # There's enough logic here to require a custom from_params.
     @classmethod
-    def from_params(cls, params: Params, dataset: Dataset = None):  # type: ignore
+    def from_params(cls, params: Params, dataset = None):  # type: ignore
         """
         There are two possible ways to build a vocabulary; from a
         collection of instances, using :func:`Vocabulary.from_instances`, or
@@ -563,10 +561,13 @@ class Vocabulary(Registrable):
 
     def extend_from_instances(self,
                               params: Params,
-                              dataset: Dataset = EmptyDataset()) -> None:
+                              dataset = None) -> None:
         """
         Extends an already generated vocabulary using a collection of instances.
         """
+        if dataset is None:
+            from allennlp.data.dataset_readers.dataset_reader import EmptyDataset
+            dataset = EmptyDataset()
         min_count = params.pop("min_count", None)
         max_vocab_size = pop_max_vocab_size(params)
         non_padded_namespaces = params.pop("non_padded_namespaces", DEFAULT_NON_PADDED_NAMESPACES)

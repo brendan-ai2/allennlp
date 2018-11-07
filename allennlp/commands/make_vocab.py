@@ -35,7 +35,7 @@ from allennlp.common.checks import ConfigurationError
 from allennlp.common.params import Params
 from allennlp.common.util import prepare_environment
 from allennlp.data import Vocabulary
-from allennlp.data.dataset import CombinedDataset
+from allennlp.data.dataset_readers.dataset_reader import CombinedDataset
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 

@@ -2,139 +2,20 @@
 A :class:`~Batch` represents a collection of ``Instance`` s to be fed
 through a model.
 """
-import glob
-import itertools
 import logging
-import random
 from collections import defaultdict
-from multiprocessing import Manager, Queue, Process
-from typing import Dict, List, Union, Iterator, Iterable, Callable, Any
+from typing import Dict, List, Union, Iterator, Iterable
 
 import numpy
 import torch
 
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.util import ensure_list
-from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.instance import Instance
 from allennlp.data.vocabulary import Vocabulary
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-
-class Dataset:
-    def map_partitions(self,
-                      f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
-        raise NotImplementedError
-
-    # Warning: Prefer map_partitions if you can structure your problem that way. More parallelism.
-    def read(self) -> Iterable[Instance]:
-        return self.map_partitions(lambda x: x)
-
-class EmptyDataset(Dataset):
-    def map_partitions(self,
-                       f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
-        return []
-
-class UnshardedDataset(Dataset):
-    def __init__(self, reader: DatasetReader, file_path: str) -> None:
-        self._reader = reader
-        self._file_path = file_path
-
-    def map_partitions(self,
-                       f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
-        iterable = self._reader.read(self._file_path)
-        return f(iterable)
-
-class CombinedDataset(Dataset):
-    def __init__(self, datasets) -> None:
-        self._datasets = datasets
-
-    def map_partitions(self,
-                       f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
-        iterables = [dataset.map_partitions(f) for dataset in self._datasets]
-        return itertools.chain(iterables)
-
-class Sentinel():
-    def __init__(self, id):
-        self.id = id
-
-class IterableQueue(Iterable):
-    def __init__(self, queue, processes, num_workers):
-        self._queue = queue
-        self._processes = processes
-        self._num_workers = num_workers
-
-    def __iter__(self) -> Iterator:
-        num_finished = 0
-
-        while num_finished < self._num_workers:
-            item = self._queue.get()
-            if isinstance(item, Sentinel):
-                # Means a worker has finished, so increment the finished count.
-                num_finished += 1
-                logger.info(f"worker {item.id} finished ({num_finished}/{self._num_workers})")
-            else:
-                # Otherwise it's a real value, so yield it up.
-                yield item
-
-        for process in self._processes:
-            process.join()
-
-def _worker(f: Callable[[Iterable[Instance]], Iterable],
-            reader: DatasetReader,
-            input_queue: Queue,
-            output_queue: Queue,
-            sentinel: Sentinel) -> None:
-    # Keep going until you get a file_path that's None.
-    while True:
-        file_path = input_queue.get()
-        if file_path is None:
-            # Put the sentinel on the queue to signify that I'm finished
-            output_queue.put(sentinel)
-            break
-
-        logger.info(f"reading instances from {file_path}")
-        iterable = f(reader.read(file_path))
-        for element in iterable:
-            output_queue.put(element)
-
-class ShardedDataset(Dataset):
-    def __init__(self, file_path, reader, num_workers, epochs_per_read, output_queue_size):
-        # TODO(brendanr): How many of these do we really need? Maybe use a singleton?
-        self.manager = Manager()
-
-        self.file_path = file_path
-        self.reader = reader
-        self.num_workers = num_workers
-        self.epochs_per_read = epochs_per_read
-        self.output_queue_size = output_queue_size
-
-    def map_partitions(self,
-                       f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
-        shards = glob.glob(self.file_path)
-
-        # If we want multiple epochs per read, put shards in the queue multiple times.
-        input_queue = self.manager.Queue(len(shards) * self.epochs_per_read + self.num_workers)
-        for _ in range(self.epochs_per_read):
-            random.shuffle(shards)
-            for shard in shards:
-                input_queue.put(shard)
-
-        # Then put a None per worker to signify no more files.
-        for _ in range(self.num_workers):
-            input_queue.put(None)
-
-        processes: List[Process] = []
-        output_queue = self.manager.Queue(self.output_queue_size)
-        for worker_id in range(self.num_workers):
-            process = Process(target=_worker,
-                              args=(f, self.reader, input_queue, output_queue, Sentinel(worker_id)))
-            logger.info(f"starting worker {worker_id}")
-            process.start()
-            processes.append(process)
-
-        return IterableQueue(output_queue, processes, self.num_workers)
 
 class Batch(Iterable):
     """

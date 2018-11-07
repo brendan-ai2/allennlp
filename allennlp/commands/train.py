@@ -50,9 +50,7 @@ from allennlp.common import Params
 from allennlp.common.util import prepare_environment, prepare_global_logging, \
                                  get_frozen_and_tunable_parameter_names, dump_metrics
 from allennlp.data import Vocabulary
-from allennlp.data.dataset import Dataset, CombinedDataset
-from allennlp.data.instance import Instance
-from allennlp.data.dataset_readers.dataset_reader import DatasetReader
+from allennlp.data.dataset_readers.dataset_reader import DatasetReader, Dataset, CombinedDataset
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.models.archival import archive_model, CONFIG_NAME
 from allennlp.models.model import Model, _DEFAULT_WEIGHTS

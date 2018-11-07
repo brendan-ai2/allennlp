@@ -5,8 +5,7 @@ import random
 
 from torch.multiprocessing import Manager, Process, Queue, log_to_stderr
 
-from allennlp.data.dataset import Dataset, ShardedDataset
-from allennlp.data.dataset_readers.dataset_reader import DatasetReader
+from allennlp.data.dataset_readers.dataset_reader import DatasetReader, Dataset, ShardedDataset
 from allennlp.data.instance import Instance
 
 logger = log_to_stderr()  # pylint: disable=invalid-name
