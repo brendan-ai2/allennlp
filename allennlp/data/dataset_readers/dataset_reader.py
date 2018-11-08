@@ -149,13 +149,16 @@ class Sentinel():
         self.id = id
 
 class IterableQueue(Iterable):
-    def __init__(self, manager, queue, processes, num_workers):
+    def __init__(self, queue, processes, num_workers, objects_to_retain):
         # Hold a reference to the manager just so it's not garbage collected while we're still iterating.
         # TODO: reconsider
-        self._manager = manager
         self._queue = queue
         self._processes = processes
         self._num_workers = num_workers
+        # This is simply a way to prevent the objects in the passed list from being garbage collected. Any
+        # shared state needed during iteration in the child processes must not be garbage collected in the
+        # main process, e.g. input_queue.
+        self._objects_to_retain = objects_to_retain
 
     def __iter__(self) -> Iterator:
         num_finished = 0
@@ -200,9 +203,6 @@ def _worker(f: Callable[[Iterable[Instance]], Iterable],
 
 class ShardedDataset(Dataset):
     def __init__(self, file_path, reader, num_workers, epochs_per_read, output_queue_size):
-        # TODO(brendanr): How many of these do we really need? Maybe use a singleton?
-        self.manager = Manager()
-
         self.file_path = file_path
         self.reader = reader
         self.num_workers = num_workers
@@ -212,9 +212,10 @@ class ShardedDataset(Dataset):
     def map_partitions(self,
                        f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
         shards = glob.glob(self.file_path)
+        manager = Manager()
 
         # If we want multiple epochs per read, put shards in the queue multiple times.
-        input_queue = self.manager.Queue(len(shards) * self.epochs_per_read + self.num_workers)
+        input_queue = manager.Queue(len(shards) * self.epochs_per_read + self.num_workers)
         print(f"len: {len(shards) * self.epochs_per_read + self.num_workers}")
         for _ in range(self.epochs_per_read):
             random.shuffle(shards)
@@ -235,7 +236,7 @@ class ShardedDataset(Dataset):
         import time; time.sleep(1)
 
         processes: List[Process] = []
-        output_queue = self.manager.Queue(self.output_queue_size)
+        output_queue = manager.Queue(self.output_queue_size)
         for worker_id in range(self.num_workers):
             process = Process(target=_worker,
                               args=(f, self.reader, input_queue, output_queue, Sentinel(worker_id)))
@@ -245,4 +246,5 @@ class ShardedDataset(Dataset):
 
         print("HERE 22222")
 
-        return IterableQueue(self.manager, output_queue, processes, self.num_workers)
+
+        return IterableQueue(output_queue, processes, self.num_workers, [manager, input_queue])
