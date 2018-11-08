@@ -142,7 +142,7 @@ class CombinedDataset(Dataset):
     def map_partitions(self,
                        f: Callable[[Iterable[Instance]], Iterable]) -> Iterable:
         iterables = [dataset.map_partitions(f) for dataset in self._datasets]
-        return itertools.chain(iterables)
+        return itertools.chain.from_iterable(iterables)
 
 class Sentinel():
     def __init__(self, id):
