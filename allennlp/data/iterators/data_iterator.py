@@ -10,6 +10,7 @@ import torch
 from allennlp.common.registrable import Registrable
 from allennlp.common.util import is_lazy, lazy_groups_of, ensure_list
 from allennlp.data.dataset import Batch
+from allennlp.data.dataset_readers.dataset_reader import Dataset
 from allennlp.data.fields import MetadataField
 from allennlp.data.instance import Instance
 from allennlp.data.vocabulary import Vocabulary
@@ -86,7 +87,7 @@ class DataIterator(Registrable):
 
 
     def __call__(self,
-                 instances: Iterable[Instance],
+                 instances: Dataset,
                  num_epochs: int = None,
                  shuffle: bool = True) -> Iterator[TensorDict]:
         """
@@ -267,23 +268,17 @@ class DataIterator(Registrable):
             return [list_batch_instances]
 
 
-    def get_num_batches(self, instances: Iterable[Instance]) -> int:
+    def get_num_batches(self, instances: Dataset) -> int:
         """
         Returns the number of batches that ``dataset`` will be split into; if you want to track
         progress through the batch with the generator produced by ``__call__``, this could be
         useful.
         """
-        if is_lazy(instances) and self._instances_per_epoch is None:
-            # Unable to compute num batches, so just return 1.
-            return 1
-        elif self._instances_per_epoch is not None:
-            return math.ceil(self._instances_per_epoch / self._batch_size)
-        else:
-            # Not lazy, so can compute the list length.
-            return math.ceil(len(ensure_list(instances)) / self._batch_size)
+        # TODO(brendanr): Do something smart here. Possibly record the number of instances seen when a dataset is first
+        # iterated through. Subsequently return that value divided by self._batch_size.
+        return 1
 
-
-    def _create_batches(self, instances: Iterable[Instance], shuffle: bool) -> Iterable[Batch]:
+    def _create_batches(self, instances: Dataset, shuffle: bool) -> Iterable[Batch]:
         """
         This method should return one epoch worth of batches.
         """
