@@ -371,9 +371,6 @@ class Vocabulary(Registrable):
             return [namespace_token_counts]
 
         all_namespace_token_counts = dataset.map_partitions(count_tokens)
-        print("BRR")
-        print(len(all_namespace_token_counts))
-        print(all_namespace_token_counts)
         return reduce(merge_counts, all_namespace_token_counts)
 
     @classmethod

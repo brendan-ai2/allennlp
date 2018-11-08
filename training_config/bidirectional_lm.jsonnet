@@ -30,10 +30,10 @@
     "output_queue_size": 100000
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   },
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
-  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
   #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
   "vocabulary": {
