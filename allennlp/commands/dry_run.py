@@ -103,13 +103,10 @@ def dry_run_from_params(params: Params, serialization_dir: str) -> None:
     logger.info("From dataset instances, %s will be considered for vocabulary creation.",
                 ", ".join(datasets_for_vocab_creation))
 
-    import pdb; pdb.set_trace()
     filtered_dataset = CombinedDataset([dataset for key, dataset in all_datasets.items()
                                         if key in datasets_for_vocab_creation])
 
     vocab = Vocabulary.from_params(vocab_params, filtered_dataset)
-    # FIXME
-    import pdb; pdb.set_trace()
     # TODO(brendanr): Wait, does this even make sense? I think Batch is being abused here.
     batch = Batch(filtered_dataset.read())
     # TODO(brendanr): Is this normally done inline?

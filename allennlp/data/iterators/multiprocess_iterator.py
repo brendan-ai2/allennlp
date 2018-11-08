@@ -75,7 +75,6 @@ class MultiprocessIterator(DataIterator):
                  output_queue_size: int = 1000) -> None:
         # pylint: disable=protected-access
         super().__init__()
-        #import pdb; pdb.set_trace()
         self.num_workers = num_workers
         self.batch_size = base_iterator._batch_size
         self.output_queue_size = output_queue_size
