@@ -28,6 +28,8 @@ def _create_tensor_dicts(input_queue: Queue,
             yield instance
             instance = input_queue.get()
 
+    # TODO(brendanr): How does this work exactly? Is there any shared state that gets mutated by the underlying
+    # iterator? The vocab perhaps? If so, it seems like this should break. Same issue applies to my Dataset solution.
     for tensor_dict in iterator(instances(), num_epochs=1, shuffle=shuffle):
         output_queue.put(tensor_dict)
 
