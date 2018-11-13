@@ -7,6 +7,7 @@ from overrides import overrides
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.util import lazy_groups_of, add_noise_to_dict_values
 from allennlp.data.dataset import Batch
+from allennlp.data.dataset_readers.dataset_reader import Dataset
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.data.vocabulary import Vocabulary
@@ -107,30 +108,32 @@ class BucketIterator(DataIterator):
         self._biggest_batch_first = biggest_batch_first
 
     @overrides
-    def _create_batches(self, instances: Iterable[Instance], shuffle: bool) -> Iterable[Batch]:
-        for instance_list in self._memory_sized_lists(instances):
+    def _create_batches(self, instances: Dataset, shuffle: bool) -> Iterable[Batch]:
+        def create_batches_per_process(instances: Iterable[Instance]):
+            for instance_list in self._memory_sized_lists(instances):
 
-            instance_list = sort_by_padding(instance_list,
-                                            self._sorting_keys,
-                                            self.vocab,
-                                            self._padding_noise)
+                instance_list = sort_by_padding(instance_list,
+                                                self._sorting_keys,
+                                                self.vocab,
+                                                self._padding_noise)
 
-            batches = []
-            for batch_instances in lazy_groups_of(iter(instance_list), self._batch_size):
-                for possibly_smaller_batches in self._ensure_batch_is_sufficiently_small(batch_instances):
-                    batches.append(Batch(possibly_smaller_batches))
+                batches = []
+                for batch_instances in lazy_groups_of(iter(instance_list), self._batch_size):
+                    for possibly_smaller_batches in self._ensure_batch_is_sufficiently_small(batch_instances):
+                        batches.append(Batch(possibly_smaller_batches))
 
-            move_to_front = self._biggest_batch_first and len(batches) > 1
-            if move_to_front:
-                # We'll actually pop the last _two_ batches, because the last one might not be full.
-                last_batch = batches.pop()
-                penultimate_batch = batches.pop()
-            if shuffle:
-                # NOTE: if shuffle is false, the data will still be in a different order
-                # because of the bucket sorting.
-                random.shuffle(batches)
-            if move_to_front:
-                batches.insert(0, penultimate_batch)
-                batches.insert(0, last_batch)
+                move_to_front = self._biggest_batch_first and len(batches) > 1
+                if move_to_front:
+                    # We'll actually pop the last _two_ batches, because the last one might not be full.
+                    last_batch = batches.pop()
+                    penultimate_batch = batches.pop()
+                if shuffle:
+                    # NOTE: if shuffle is false, the data will still be in a different order
+                    # because of the bucket sorting.
+                    random.shuffle(batches)
+                if move_to_front:
+                    batches.insert(0, penultimate_batch)
+                    batches.insert(0, last_batch)
 
-            yield from batches
+                yield from batches
+        return instances.map_partitions(create_batches_per_process)
