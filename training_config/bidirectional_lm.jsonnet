@@ -37,11 +37,11 @@
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
+  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
   # Trivial amount sharded
-  "train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
-  "validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
+  #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
+  #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
   # Trivial amount sharded -- 2 shards for training
   #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard[0-1]",
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
