@@ -30,12 +30,21 @@
     "output_queue_size": 100000
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   },
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
-  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  # All data
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  # 2 shards for training
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
-  #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
-  #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
+  # Trivial amount sharded
+  "train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
+  "validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
+  # Trivial amount sharded -- 2 shards for training
+  #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard[0-1]",
+  #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
   "vocabulary": {
       "tokens_to_add": {
           "tokens": ["<s>", "</s>"],
@@ -74,8 +83,11 @@
     }
   },
     "iterator": {
-      "type": "basic",
-      "batch_size": 32
+      # TODO(brendanr): Try bucket.
+      "type": "bucket",
+      "batch_size": 32,
+      # TODO(brendanr): Correct order?
+      "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]]
     },
   #"iterator": {
   #  "type": "multiprocess",
@@ -89,7 +101,7 @@
   "trainer": {
     "num_epochs": 10,
     # TODO(brendanr): Switch this to [0, 1].
-    "cuda_device" : -1,
+    "cuda_device" : [0, 1],
     "optimizer": {
       "type": "sgd",
       "lr": 0.01
