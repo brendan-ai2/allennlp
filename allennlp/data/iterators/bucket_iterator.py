@@ -33,6 +33,7 @@ def sort_by_padding(instances: List[Instance],
             for field_name, field_lengths in padding_lengths.items():
                 noisy_lengths[field_name] = add_noise_to_dict_values(field_lengths, padding_noise)
             padding_lengths = noisy_lengths
+        print(f"BRR: ${padding_lengths}")
         instance_with_lengths = ([padding_lengths[field_name][padding_key]
                                   for (field_name, padding_key) in sorting_keys],
                                  instance)
