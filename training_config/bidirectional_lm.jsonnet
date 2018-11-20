@@ -1,7 +1,8 @@
-{
-  "dataset_reader": {
-    "type": "multiprocess",
-    "base_reader": {
+local NUM_GPUS = 1;
+# TODO(brendanr): Can be as large as 8 on your machine.
+local NUM_THREADS = 2;
+
+local BASE_READER = {
         "type": "simple_language_modeling",
         "tokenizer": {
           "type": "word",
@@ -24,21 +25,28 @@
             "start_tokens": ["<s>"],
             "end_tokens": ["</s>"]
           }
-        }
-    },
-    "num_workers": 8,
+        },
+        max_sequence_length: 500,
+        maximum_samples_per_batch: NUM_GPUS * 3000
+};
+
+{
+  "dataset_reader": if NUM_THREADS > 1 then {
+    "type": "multiprocess",
+    "base_reader": BASE_READER,
+    "num_workers": NUM_THREADS,
     "output_queue_size": 100000
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
-  },
+  } else BASE_READER,
   # All data
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
-  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
   # Trivial amount sharded
   #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
@@ -82,13 +90,14 @@
         "hidden_size": 7,
     }
   },
-    "iterator": {
-      # TODO(brendanr): Try bucket.
-      "type": "bucket",
-      "batch_size": 32,
-      # TODO(brendanr): Correct order?
-      "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]]
-    },
+  "iterator": {
+    "type": "bucket",
+    "batch_size": 40,
+    # TODO(brendanr): Correct order?
+    "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
+    # TODO(brendanr): Is this even meaningful given laziness?
+    "biggest_batch_first": true
+  },
   #"iterator": {
   #  "type": "multiprocess",
   #  "iterator": {
@@ -100,8 +109,7 @@
   #},
   "trainer": {
     "num_epochs": 10,
-    # TODO(brendanr): Switch this to [0, 1].
-    "cuda_device" : [0, 1],
+    "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS) else 0,
     "optimizer": {
       "type": "sgd",
       "lr": 0.01
