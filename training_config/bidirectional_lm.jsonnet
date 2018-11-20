@@ -26,8 +26,7 @@ local BASE_READER = {
             "end_tokens": ["</s>"]
           }
         },
-        max_sequence_length: 500,
-        maximum_samples_per_batch: NUM_GPUS * 3000
+        "max_sequence_length": 500
 };
 
 {
@@ -96,7 +95,9 @@ local BASE_READER = {
     # TODO(brendanr): Correct order?
     "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
     # TODO(brendanr): Is this even meaningful given laziness?
-    "biggest_batch_first": true
+    "biggest_batch_first": true,
+    # TODO(brendanr): Grok namespacing vis-a-vis  `["source", "num_tokens"]` above.
+    "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 3000]
   },
   #"iterator": {
   #  "type": "multiprocess",
