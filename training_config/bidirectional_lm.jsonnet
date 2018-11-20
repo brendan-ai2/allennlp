@@ -1,4 +1,4 @@
-local NUM_GPUS = 1;
+local NUM_GPUS = 2;
 # TODO(brendanr): Can be as large as 8 on your machine.
 local NUM_THREADS = 2;
 
@@ -91,7 +91,8 @@ local BASE_READER = {
   },
   "iterator": {
     "type": "bucket",
-    "batch_size": 40,
+    # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
+    "batch_size": 32 * NUM_GPUS,
     # TODO(brendanr): Correct order?
     "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
     # TODO(brendanr): Is this even meaningful given laziness?
@@ -110,7 +111,7 @@ local BASE_READER = {
   #},
   "trainer": {
     "num_epochs": 10,
-    "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS) else 0,
+    "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS - 1) else 0,
     "optimizer": {
       "type": "sgd",
       "lr": 0.01
