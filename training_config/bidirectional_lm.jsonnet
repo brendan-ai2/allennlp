@@ -74,18 +74,24 @@ local BASE_READER = {
             "type": "character_encoding",
             "embedding": {
                 "num_embeddings": 262,
-                "embedding_dim": 4
+                "embedding_dim": 32
             },
-            # TODO(brendanr): Flesh out? Use Calypso.
             "encoder": {
                 "type": "cnn-highway",
                 "activation": "relu",
-                "embedding_dim": 4,
-                # TODO(brendanr): More filters.
-                "filters": [[1, 4], [2, 8], [3, 16], [4, 32], [5, 64]],
-                "num_highway": 2,
-                "projection_dim": 16,
-                "projection_location": "after_cnn"
+                "embedding_dim": 32,
+                "filters": [
+                    [1, 32],
+                    [2, 32],
+                    [3, 64],
+                    [4, 128],
+                    [5, 256],
+                    [6, 512],
+                    [7, 1024]],
+                "num_highway": 1,
+                "projection_dim": 512,
+                # TODO(brendanr): Where is l2_coef?
+                "projection_location": "after_highway"
             }
         }
       }
@@ -95,9 +101,10 @@ local BASE_READER = {
     "contextualizer": {
         "type": "lstm",
         "bidirectional": true,
-        "num_layers": 3,
-        "input_size": 16,
-        "hidden_size": 7,
+        # TODO(brendanr): Why only 1? See https://github.com/allenai/calypso/blob/41b937133a7b6bbd78ce974d9237da238bde2a3d/calypso/bidirectional_lm.py#L40
+        "num_layers": 1,
+        "input_size": 512,
+        "hidden_size": 512,
     }
   },
   "iterator": {
@@ -126,7 +133,7 @@ local BASE_READER = {
     "optimizer": {
       # TODO(brendanr): Use the dense_sparse_adam optimizer.
       # The gradient accumulators in adam for the running stdev and mean for the words that we didn't use are going to drop to 0 if we don't do this, because we would still decay the values to zero, even when we don't use them.
-      "type": "sgd",
+      "type": "dense_sparse_adam",
       "lr": 0.01
     }
   }
