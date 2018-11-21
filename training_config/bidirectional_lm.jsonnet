@@ -1,6 +1,6 @@
 local NUM_GPUS = 2;
 # TODO(brendanr): Can be as large as 8 on your machine.
-local NUM_THREADS = 2;
+local NUM_THREADS = 8;
 
 local BASE_READER = {
         "type": "simple_language_modeling",
@@ -39,11 +39,11 @@ local BASE_READER = {
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   } else BASE_READER,
   # All data
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
-  "validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
@@ -53,6 +53,11 @@ local BASE_READER = {
   # Trivial amount sharded -- 2 shards for training
   #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard[0-1]",
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
+
+  # 2 small, but not trivial
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
+  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev_small/*",
+
   # TODO: Figure out which start and end characters to remove from the tokens.txt file.
   "vocabulary": {
       #"tokens_to_add": {
@@ -137,6 +142,7 @@ local BASE_READER = {
       # The gradient accumulators in adam for the running stdev and mean for the words that we didn't use are going to drop to 0 if we don't do this, because we would still decay the values to zero, even when we don't use them.
       "type": "dense_sparse_adam",
       "lr": 0.01
-    }
+    },
+    "grad_norm": 10.0
   }
 }
