@@ -96,6 +96,8 @@ local BASE_READER = {
         }
       }
     },
+    # Applies to the contextualized embeddings.
+    "dropout": 0.2,
     # TODO(brendanr): Flesh out. Use Calypso.
     # TODO(brendanr): For any LSTM use Mark's special initialization tricks. Maybe not for transformer.
     "contextualizer": {
