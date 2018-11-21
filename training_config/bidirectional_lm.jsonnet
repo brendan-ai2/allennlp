@@ -21,6 +21,7 @@ local BASE_READER = {
             "end_tokens": ["</s>"]
           },
           "token_characters": {
+            #TODO(brendanr): Should we use elmo_indexer here??????
             "type": "characters",
             "start_tokens": ["<s>"],
             "end_tokens": ["</s>"]
@@ -52,15 +53,21 @@ local BASE_READER = {
   # Trivial amount sharded -- 2 shards for training
   #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard[0-1]",
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
+  # TODO: Figure out which start and end characters to remove from the tokens.txt file.
   "vocabulary": {
-      "tokens_to_add": {
-          "tokens": ["<s>", "</s>"],
-          "token_characters": ["<>/s"]
-      },
+      #"tokens_to_add": {
+      #    "tokens": ["<s>", "</s>"],
+      #    "token_characters": ["<>/s"]
+      #},
+      #"min_count": {"source_tokens": 3},
+      "directory_path": "/home/brendanr/workbenches/calypso/vocabulary"
   },
   "model": {
     "type": "bidirectional-language-model",
+    "num_samples": 8192,
+    "sparse_embeddings": true,
     "text_field_embedder": {
+      # Note: This is because we only use the token_characters during embedding, not the tokens themselves.
       "allow_unmatched_keys": true,
       "token_embedders": {
         "token_characters": {
@@ -69,10 +76,12 @@ local BASE_READER = {
                 "num_embeddings": 262,
                 "embedding_dim": 4
             },
+            # TODO(brendanr): Flesh out? Use Calypso.
             "encoder": {
                 "type": "cnn-highway",
                 "activation": "relu",
                 "embedding_dim": 4,
+                # TODO(brendanr): More filters.
                 "filters": [[1, 4], [2, 8], [3, 16], [4, 32], [5, 64]],
                 "num_highway": 2,
                 "projection_dim": 16,
@@ -81,6 +90,8 @@ local BASE_READER = {
         }
       }
     },
+    # TODO(brendanr): Flesh out. Use Calypso.
+    # TODO(brendanr): For any LSTM use Mark's special initialization tricks. Maybe not for transformer.
     "contextualizer": {
         "type": "lstm",
         "bidirectional": true,
@@ -113,6 +124,8 @@ local BASE_READER = {
     "num_epochs": 10,
     "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS - 1) else 0,
     "optimizer": {
+      # TODO(brendanr): Use the dense_sparse_adam optimizer.
+      # The gradient accumulators in adam for the running stdev and mean for the words that we didn't use are going to drop to 0 if we don't do this, because we would still decay the values to zero, even when we don't use them.
       "type": "sgd",
       "lr": 0.01
     }
