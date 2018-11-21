@@ -30,6 +30,18 @@ local BASE_READER = {
         "max_sequence_length": 500
 };
 
+local BASE_ITERATOR = {
+  "type": "bucket",
+  # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
+  "batch_size": 32 * NUM_GPUS,
+  # TODO(brendanr): Correct order?
+  "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
+  # TODO(brendanr): Is this even meaningful given laziness?
+  "biggest_batch_first": true,
+  # TODO(brendanr): Grok namespacing vis-a-vis  `["source", "num_tokens"]` above.
+  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 3000]
+};
+
 {
   "dataset_reader": if NUM_THREADS > 1 then {
     "type": "multiprocess",
@@ -114,26 +126,13 @@ local BASE_READER = {
         "hidden_size": 512,
     }
   },
+  #"iterator": BASE_ITERATOR,
   "iterator": {
-    "type": "bucket",
-    # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
-    "batch_size": 32 * NUM_GPUS,
-    # TODO(brendanr): Correct order?
-    "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
-    # TODO(brendanr): Is this even meaningful given laziness?
-    "biggest_batch_first": true,
-    # TODO(brendanr): Grok namespacing vis-a-vis  `["source", "num_tokens"]` above.
-    "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 3000]
+    "type": "multiprocess",
+    "base_iterator": BASE_ITERATOR,
+    "num_workers": 8,
+    "output_queue_size": 100000
   },
-  #"iterator": {
-  #  "type": "multiprocess",
-  #  "iterator": {
-  #    "type": "basic",
-  #    "batch_size": 32
-  #  },
-  #  "num_workers": 8,
-  #  "output_queue_size": 100000
-  #},
   "trainer": {
     "num_epochs": 10,
     "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS - 1) else 0,
