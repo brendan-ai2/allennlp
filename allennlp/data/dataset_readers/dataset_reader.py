@@ -193,8 +193,11 @@ def _worker(f: Callable[[Iterable[Instance]], Iterable],
 
         logger.info(f"reading instances from {file_path}")
         iterable = f(reader.read(file_path))
+        item_count = 0
         for element in iterable:
             output_queue.put(element)
+            item_count += 1
+        logger.info(f"after mapping with user function, {file_path} gave {item_count} items")
 
 class ShardedDataset(Dataset):
     def __init__(self, file_path, reader, num_workers, epochs_per_read, output_queue_size):
