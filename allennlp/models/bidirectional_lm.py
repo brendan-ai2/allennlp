@@ -11,6 +11,7 @@ from allennlp.modules.text_field_embedders import TextFieldEmbedder
 from allennlp.modules.sampled_softmax_loss import SampledSoftmaxLoss
 from allennlp.modules.seq2seq_encoders import Seq2SeqEncoder
 from allennlp.nn.util import get_text_field_mask, remove_sentence_boundaries
+from allennlp.nn import InitializerApplicator, RegularizerApplicator, Activation
 
 
 class _SoftmaxLoss(torch.nn.Module):
@@ -95,7 +96,8 @@ class BidirectionalLanguageModel(Model):
                  loss_scale: Union[float, str] = 1.0,
                  remove_bos_eos: bool = True,
                  num_samples: int = None,
-                 sparse_embeddings: bool = False) -> None:
+                 sparse_embeddings: bool = False,
+                 initializer: InitializerApplicator = None) -> None:
         super().__init__(vocab)
         self._text_field_embedder = text_field_embedder
         self._layer_norm = layer_norm or (lambda x: x)
@@ -128,6 +130,8 @@ class BidirectionalLanguageModel(Model):
 
         self._loss_scale = loss_scale
         self._remove_bos_eos = remove_bos_eos
+        if initializer is not None:
+            initializer(self)
 
     def _get_target_token_embedding(self,
                                     token_embeddings: torch.Tensor,
