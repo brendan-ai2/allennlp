@@ -33,7 +33,7 @@ local BASE_READER = {
 local BASE_ITERATOR = {
   "type": "bucket",
   # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
-  "batch_size": 256 * NUM_GPUS,
+  "batch_size": 512 * NUM_GPUS,
   # TODO(brendanr): Correct order?
   "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
   # TODO(brendanr): Is this even meaningful given laziness?
