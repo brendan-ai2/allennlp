@@ -482,8 +482,11 @@ class Trainer(Registrable):
         logger.info("Training")
         train_generator_tqdm = Tqdm.tqdm(train_generator,
                                          total=num_training_batches)
+        cumulative_batch_size = 0 # REMOVEME
         for batch in train_generator_tqdm:
             batches_this_epoch += 1
+            if batches_this_epoch % 100 == 1:
+                print(f"{batch}")
             self._batch_num_total += 1
             batch_num_total = self._batch_num_total
 
