@@ -485,8 +485,9 @@ class Trainer(Registrable):
         cumulative_batch_size = 0 # REMOVEME
         for batch in train_generator_tqdm:
             batches_this_epoch += 1
-            if batches_this_epoch % 100 == 1:
-                print(f"{batch}")
+            cumulative_batch_size += batch['source']['tokens'].size()[0] # REMOVEME
+            if batches_this_epoch % 100 == 1: # REMOVEME
+                print(f"average batch size {cumulative_batch_size/batches_this_epoch}") # REMOVEME
             self._batch_num_total += 1
             batch_num_total = self._batch_num_total
 
