@@ -141,7 +141,11 @@ class DataIterator(Registrable):
                 # Should we add the instances to the cache this epoch?
                 add_to_cache = self._cache_instances and key not in self._cache
 
+                batch_count = 0 #REMOVEME
                 for batch in batches:
+                    batch_count += 1 #REMOVEME
+                    if batch_count % 20 == 1: #REMOVEME
+                        print(f"rough queue size: {batches._queue.qsize()}") #REMOVEME
                     if self._track_epoch:
                         add_epoch_number(batch, epoch)
 
