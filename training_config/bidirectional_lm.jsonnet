@@ -47,14 +47,14 @@ local BASE_ITERATOR = {
     "type": "multiprocess",
     "base_reader": BASE_READER,
     "num_workers": NUM_THREADS,
-    "output_queue_size": 100000
+    "output_queue_size": 1000
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   } else BASE_READER,
   # All data
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
@@ -67,7 +67,7 @@ local BASE_ITERATOR = {
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
 
   # 2 small, but not trivial
-  "train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev_small/*",
 
   # TODO: Figure out which start and end characters to remove from the tokens.txt file.
