@@ -28,7 +28,10 @@ def _create_tensor_dicts(input_queue: Queue,
             yield instance
             instance = input_queue.get()
 
+    count = 0
     for tensor_dict in iterator(instances(), num_epochs=1, shuffle=shuffle):
+        if count % 10 == 0: # REMOVEME
+            print(f"approximate output_queue size: {output_queue.qsize()}") # REMOVEME
         output_queue.put(tensor_dict)
 
     output_queue.put(index)
