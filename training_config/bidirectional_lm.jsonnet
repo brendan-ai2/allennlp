@@ -40,7 +40,7 @@ local BASE_ITERATOR = {
   # TODO(brendanr): Is this even meaningful given laziness?
   "biggest_batch_first": true,
   # TODO(brendanr): Grok namespacing vis-a-vis  `["source", "num_tokens"]` above.
-  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 3000]
+  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 6000]
 };
 
 {
@@ -52,10 +52,10 @@ local BASE_ITERATOR = {
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   } else BASE_READER,
   # All data
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
@@ -145,6 +145,8 @@ local BASE_ITERATOR = {
     "type": "multiprocess",
     "base_iterator": BASE_ITERATOR,
     "num_workers": NUM_THREADS,
+    # Note: Requires a higher ulimit for some reason. I used `ulimit -n 4096`. Could use tuning.
+    # TODO(brendanr): Why is this necessary?
     "output_queue_size": 500
   },
   "trainer": {
