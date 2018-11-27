@@ -32,8 +32,9 @@ local BASE_READER = {
 
 local BASE_ITERATOR = {
   "type": "bucket",
+  "max_instances_in_memory": 4096 * NUM_GPUS,
   # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
-  "batch_size": 32 * NUM_GPUS,
+  "batch_size": 512 * NUM_GPUS,
   # TODO(brendanr): Correct order?
   "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
   # TODO(brendanr): Is this even meaningful given laziness?
@@ -47,14 +48,14 @@ local BASE_ITERATOR = {
     "type": "multiprocess",
     "base_reader": BASE_READER,
     "num_workers": NUM_THREADS,
-    "output_queue_size": 100000
+    "output_queue_size": 1000
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   } else BASE_READER,
   # All data
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
@@ -83,6 +84,17 @@ local BASE_ITERATOR = {
     "type": "bidirectional-language-model",
     "num_samples": 8192,
     "sparse_embeddings": true,
+    "initializer": [
+          [".*tag_projection_layer.*weight", {"type": "xavier_uniform"}], # Initialise the final projection before the softmax.
+          [".*tag_projection_layer.*bias", {"type": "zero"}],
+          [".*feedforward.*weight", {"type": "xavier_uniform"}], # Same initialisation for an auxilary FF layer. `xavier_uniform` is a better default than random normally.
+          [".*feedforward.*bias", {"type": "zero"}],
+          # This part is for the LSTM init.
+          [".*weight_ih.*", {"type": "xavier_uniform"}],
+          [".*weight_hh.*", {"type": "orthogonal"}],
+          [".*bias_ih.*", {"type": "zero"}],
+          [".*bias_hh.*", {"type": "lstm_hidden_bias"}]
+    ],
     "text_field_embedder": {
       # Note: This is because we only use the token_characters during embedding, not the tokens themselves.
       "allow_unmatched_keys": true,
@@ -126,21 +138,23 @@ local BASE_ITERATOR = {
         "hidden_size": 512,
     }
   },
-  #"iterator": BASE_ITERATOR,
-  "iterator": {
-    "type": "multiprocess",
-    "base_iterator": BASE_ITERATOR,
-    "num_workers": 8,
-    "output_queue_size": 100000
-  },
+  "iterator": BASE_ITERATOR,
+  # Note: The multiprocess iterator doesn't make sense with the ShardedDataset model.
+  #"iterator": {
+  #  "type": "multiprocess",
+  #  "base_iterator": BASE_ITERATOR,
+  #  "num_workers": 8,
+  #  "output_queue_size": 100000
+  #},
   "trainer": {
     "num_epochs": 10,
     "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS - 1) else 0,
     "optimizer": {
       # TODO(brendanr): Use the dense_sparse_adam optimizer.
       # The gradient accumulators in adam for the running stdev and mean for the words that we didn't use are going to drop to 0 if we don't do this, because we would still decay the values to zero, even when we don't use them.
-      "type": "dense_sparse_adam",
-      "lr": 0.01
+      "type": "dense_sparse_adam"
+      # TOO BIG???
+      #,"lr": 0.01
     },
     "grad_norm": 10.0
   }
