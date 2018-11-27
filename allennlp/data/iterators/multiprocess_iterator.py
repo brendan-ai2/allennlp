@@ -133,6 +133,7 @@ class MultiprocessIterator(DataIterator):
 
         for process in self.processes:
             process.join()
+        print("DONE IN MULTIPROCESS ITERATOR")
         self.processes.clear()
 
         if self.queuer is not None:
