@@ -489,7 +489,7 @@ class Trainer(Registrable):
             dimensions = batch['source']['tokens'].size() # REMOVEME
             cur_batch = dimensions[0] # REMOVEME
             cumulative_batch_size += cur_batch
-            if batches_this_epoch % 100 == 1: # REMOVEME
+            if batches_this_epoch % 20 == 1: # REMOVEME
                 print(f" cur batch: {cur_batch} average batch: {cumulative_batch_size/batches_this_epoch}") # REMOVEME
             self._batch_num_total += 1
             batch_num_total = self._batch_num_total
