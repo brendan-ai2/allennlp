@@ -138,14 +138,15 @@ local BASE_ITERATOR = {
         "hidden_size": 512,
     }
   },
-  "iterator": BASE_ITERATOR,
+  #"iterator": BASE_ITERATOR,
   # Note: The multiprocess iterator doesn't make sense with the ShardedDataset model.
-  #"iterator": {
-  #  "type": "multiprocess",
-  #  "base_iterator": BASE_ITERATOR,
-  #  "num_workers": 8,
-  #  "output_queue_size": 100000
-  #},
+  # NOTE: OR DOES IT?
+  "iterator": {
+    "type": "multiprocess",
+    "base_iterator": BASE_ITERATOR,
+    "num_workers": NUM_THREADS,
+    "output_queue_size": 500
+  },
   "trainer": {
     "num_epochs": 10,
     "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS - 1) else 0,
