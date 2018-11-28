@@ -29,8 +29,6 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         The output dimension of the projection layer.
     activation: str, optional (default = 'relu')
         The activation function for the convolutional layers.
-    max_characters_per_token: int, optional (default = 50)
-        The maximum length of any token.
     projection_location: str, optional (default = 'after_highway')
         Where to apply the projection layer. Valid values are
         'after_highway', 'after_cnn', and None.
@@ -99,31 +97,24 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         else:
             self._layer_norm = lambda tensor: tensor
 
-    def forward(self,
-                inputs: torch.Tensor,
-                mask: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         Compute context insensitive token embeddings for ELMo representations.
 
         Parameters
         ----------
         inputs:
-            Shape ``(batch_size, num_tokens, embedding_dim)``
+            Shape ``(batch_size, num_characters, embedding_dim)``
             of character embeddings representing the current batch.
-        mask:
-            Shape ``(batch_size, num_tokens)``
-            mask for the current batch.
 
         Returns
         -------
         ``encoding``:
-            Shape ``(batch_size, sequence_length, embedding_dim2)`` tensor
-            with context-insensitive token representations. If bos_characters and eos_characters
-            are being added, the second dimension will be ``sequence_length + 2``.
+            Shape ``(batch_size, projection_dim)`` tensor with context-insensitive token representations.
         """
         # pylint: disable=arguments-differ
 
-        # convolutions want (batch_size, embedding_dim, num_tokens)
+        # convolutions want (batch_size, embedding_dim, num_characters)
         inputs = inputs.transpose(1, 2)
 
         convolutions = []
@@ -146,7 +137,7 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         token_embedding = self._highways(token_embedding)
 
         if self._projection_location == 'after_highway':
-            # final projection  (batch_size, embedding_dim)
+            # final projection  (batch_size, projection_dim)
             token_embedding = self._projection(token_embedding)
 
         # Apply layer norm if appropriate
