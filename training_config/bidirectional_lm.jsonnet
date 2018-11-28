@@ -46,7 +46,7 @@ local BASE_ITERATOR = {
   # - 12k OOMs. (Maybe having a limit on characters per token would help here?
   # - Hmmm, 9k OOMs too. Maybe we have a leak?
   # - 6k OOMs on V100. LEAK?
-  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 3000]
+  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 2000]
 };
 
 {
@@ -109,12 +109,13 @@ local BASE_ITERATOR = {
             "type": "character_encoding",
             "embedding": {
                 "num_embeddings": 262,
-                "embedding_dim": 32
+                # TODO(brendanr): When used with an LSTM contextualizer this is 32. Is that okay?
+                "embedding_dim": 16
             },
             "encoder": {
                 "type": "cnn-highway",
                 "activation": "relu",
-                "embedding_dim": 32,
+                "embedding_dim": 16,
                 "filters": [
                     [1, 32],
                     [2, 32],
@@ -123,25 +124,29 @@ local BASE_ITERATOR = {
                     [5, 256],
                     [6, 512],
                     [7, 1024]],
-                "num_highway": 1,
+                "num_highway": 2,
                 "projection_dim": 512,
-                # TODO(brendanr): Where is l2_coef?
-                "projection_location": "after_highway"
+                "projection_location": "after_highway",
+                # TODO(brendanr): Implement
+                #"max_characters_per_token": 50,
+                "do_layer_norm": true
             }
         }
       }
     },
     # Applies to the contextualized embeddings.
-    "dropout": 0.2,
+    "dropout": 0.1,
     # TODO(brendanr): Flesh out. Use Calypso.
     # TODO(brendanr): For any LSTM use Mark's special initialization tricks. Maybe not for transformer.
     "contextualizer": {
-        "type": "lstm",
-        "bidirectional": true,
-        # TODO(brendanr): Why only 1? See https://github.com/allenai/calypso/blob/41b937133a7b6bbd78ce974d9237da238bde2a3d/calypso/bidirectional_lm.py#L40
-        "num_layers": 1,
-        "input_size": 512,
-        "hidden_size": 512,
+        "type": "transformer",
+        "input_dim": 512,
+        "hidden_dim": 2048,
+        "num_layers": 6,
+        # TODO(brendanr): Does this need to be used?
+        #"dropout": ???,
+        # TODO(brendanr): Verify this dropout is applied in the same place as Calypso.
+        "input_dropout": 0.1
     }
   },
   #"iterator": BASE_ITERATOR,
@@ -165,6 +170,7 @@ local BASE_ITERATOR = {
       # TOO BIG???
       #,"lr": 0.01
     },
+    # TODO(brendanr): Needed with transformer too?
     "grad_norm": 10.0
   }
 }
