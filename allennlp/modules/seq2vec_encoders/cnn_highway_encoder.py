@@ -4,8 +4,8 @@ import torch
 import numpy as np
 
 from allennlp.common.checks import ConfigurationError
+from allennlp.modules import LayerNorm
 from allennlp.modules.highway import Highway
-from allennlp.modules.masked_layer_norm import MaskedLayerNorm
 from allennlp.modules.seq2vec_encoders.seq2vec_encoder import Seq2VecEncoder
 
 _VALID_PROJECTION_LOCATIONS = {'after_cnn', 'after_highway', None}
@@ -35,7 +35,7 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         Where to apply the projection layer. Valid values are
         'after_highway', 'after_cnn', and None.
     do_layer_norm: bool, optional (default = False)
-        If True, we apply ``MaskedLayerNorm`` to the final encoded result.
+        If True, we apply ``LayerNorm`` to the final encoded result.
     """
     def __init__(self,
                  embedding_dim: int,
@@ -95,9 +95,9 @@ class CnnHighwayEncoder(Seq2VecEncoder):
 
         # And add a layer norm
         if do_layer_norm:
-            self._layer_norm: Callable = MaskedLayerNorm(self.output_dim, gamma0=0.1)
+            self._layer_norm: Callable = LayerNorm(self.output_dim)
         else:
-            self._layer_norm = lambda tensor, mask: tensor
+            self._layer_norm = lambda tensor: tensor
 
     def forward(self,
                 inputs: torch.Tensor,
@@ -150,7 +150,7 @@ class CnnHighwayEncoder(Seq2VecEncoder):
             token_embedding = self._projection(token_embedding)
 
         # Apply layer norm if appropriate
-        token_embedding = self._layer_norm(token_embedding, mask)
+        token_embedding = self._layer_norm(token_embedding)
 
         return token_embedding
 
