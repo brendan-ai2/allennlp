@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union, Optional, Callable
+from typing import Dict, List, Tuple, Union, Optional
 
 import torch
 import numpy as np
@@ -67,8 +67,8 @@ class BidirectionalLanguageModel(Model):
     contextualizer: ``Seq2SeqEncoder``
         Used to "contextualize" the embeddings. As described above,
         this encoder must not cheat by peeking ahead.
-    do_layer_norm: bool, optional (default = False)
-        If True, ``MaskedLayerNorm``is applied to the noncontextualized embeddings
+    layer_norm: ``MaskedLayerNorm``, optional (default: None)
+        If provided, is applied to the noncontextualized embeddings
         before they're fed to the contextualizer.
     dropout: ``float``, optional (default: None)
         If specified, dropout is applied to the contextualized embeddings.
@@ -91,7 +91,7 @@ class BidirectionalLanguageModel(Model):
                  vocab: Vocabulary,
                  text_field_embedder: TextFieldEmbedder,
                  contextualizer: Seq2SeqEncoder,
-                 do_layer_norm: bool = None,
+                 layer_norm: Optional[MaskedLayerNorm] = None,
                  dropout: float = None,
                  loss_scale: Union[float, str] = 1.0,
                  remove_bos_eos: bool = True,
@@ -100,7 +100,7 @@ class BidirectionalLanguageModel(Model):
                  initializer: InitializerApplicator = None) -> None:
         super().__init__(vocab)
         self._text_field_embedder = text_field_embedder
-
+        self._layer_norm = layer_norm or (lambda x: x)
 
         if not contextualizer.is_bidirectional():
             raise ConfigurationError("contextualizer must be bidirectional")
@@ -130,13 +130,6 @@ class BidirectionalLanguageModel(Model):
 
         self._loss_scale = loss_scale
         self._remove_bos_eos = remove_bos_eos
-
-        # And add a layer norm
-        if do_layer_norm:
-            self._layer_norm: Callable = MaskedLayerNorm(self.output_dim, gamma0=0.1)
-        else:
-            self._layer_norm = lambda tensor, mask: tensor
-
         if initializer is not None:
             initializer(self)
 
@@ -249,7 +242,7 @@ class BidirectionalLanguageModel(Model):
         embeddings = self._text_field_embedder(source)
 
         # Apply LayerNorm if appropriate.
-        embeddings = self._layer_norm(embeddings, mask)
+        embeddings = self._layer_norm(embeddings)
 
         contextual_embeddings = self._contextualizer(embeddings, mask)
 
