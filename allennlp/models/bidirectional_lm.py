@@ -100,7 +100,7 @@ class BidirectionalLanguageModel(Model):
                  initializer: InitializerApplicator = None) -> None:
         super().__init__(vocab)
         self._text_field_embedder = text_field_embedder
-        self._layer_norm = layer_norm or (lambda x: x)
+        self._layer_norm = layer_norm or (lambda tensor, mask: tensor)
 
         if not contextualizer.is_bidirectional():
             raise ConfigurationError("contextualizer must be bidirectional")
