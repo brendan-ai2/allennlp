@@ -46,6 +46,7 @@
         }
       }
     },
+    "do_layer_norm": true,
     "contextualizer": {
         "type": "lstm",
         "bidirectional": true,

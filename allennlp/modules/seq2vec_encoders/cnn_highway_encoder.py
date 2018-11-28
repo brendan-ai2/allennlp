@@ -34,8 +34,6 @@ class CnnHighwayEncoder(Seq2VecEncoder):
     projection_location: str, optional (default = 'after_highway')
         Where to apply the projection layer. Valid values are
         'after_highway', 'after_cnn', and None.
-    do_layer_norm: bool, optional (default = False)
-        If True, we apply ``MaskedLayerNorm`` to the final encoded result.
     """
     def __init__(self,
                  embedding_dim: int,
@@ -43,8 +41,7 @@ class CnnHighwayEncoder(Seq2VecEncoder):
                  num_highway: int,
                  projection_dim: int,
                  activation: str = 'relu',
-                 projection_location: str = 'after_highway',
-                 do_layer_norm: bool = False) -> None:
+                 projection_location: str = 'after_highway') -> None:
         super().__init__()
 
         if projection_location not in _VALID_PROJECTION_LOCATIONS:
@@ -93,11 +90,6 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         self._projection.weight.data.normal_(mean=0.0, std=np.sqrt(1.0 / num_filters))
         self._projection.bias.data.fill_(0.0)
 
-        # And add a layer norm
-        if do_layer_norm:
-            self._layer_norm: Callable = MaskedLayerNorm(self.output_dim, gamma0=0.1)
-        else:
-            self._layer_norm = lambda tensor, mask: tensor
 
     def forward(self,
                 inputs: torch.Tensor,
@@ -148,9 +140,6 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         if self._projection_location == 'after_highway':
             # final projection  (batch_size, embedding_dim)
             token_embedding = self._projection(token_embedding)
-
-        # Apply layer norm if appropriate
-        token_embedding = self._layer_norm(token_embedding, mask)
 
         return token_embedding
 
