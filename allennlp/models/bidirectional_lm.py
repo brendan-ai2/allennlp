@@ -242,7 +242,7 @@ class BidirectionalLanguageModel(Model):
         embeddings = self._text_field_embedder(source)
 
         # Apply LayerNorm if appropriate.
-        embeddings = self._layer_norm(embeddings)
+        embeddings = self._layer_norm(embeddings, mask)
 
         contextual_embeddings = self._contextualizer(embeddings, mask)
 
