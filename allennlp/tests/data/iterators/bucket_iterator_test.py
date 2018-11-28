@@ -90,10 +90,10 @@ class TestBucketIterator(IteratorTest):
         assert stats['total_instances'] == len(self.instances)
 
         # ensure correct batch sizes
-        assert stats['batch_lengths'] == [2, 1, 1, 1]
+        assert stats['batch_lengths'] == [2, 2, 1]
 
         # ensure correct sample sizes (<= 9)
-        assert stats['sample_sizes'] == [8, 3, 9, 1]
+        assert stats['sample_sizes'] == [6, 8, 9]
 
     def test_maximum_samples_per_batch_packs_tightly(self):
         token_counts = [10, 4, 3]
@@ -112,7 +112,7 @@ class TestBucketIterator(IteratorTest):
         assert stats['total_instances'] == len(test_instances)
 
         # ensure correct batch sizes
-        assert stats['batch_lengths'] == [1, 2]
+        assert stats['batch_lengths'] == [2, 1]
 
-        # ensure correct sample sizes (<= 9)
-        assert stats['sample_sizes'] == [10, 8]
+        # ensure correct sample sizes (<= 11)
+        assert stats['sample_sizes'] == [8, 10]

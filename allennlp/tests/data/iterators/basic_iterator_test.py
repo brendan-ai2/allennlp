@@ -275,5 +275,5 @@ class TestBasicIterator(IteratorTest):
         # ensure correct batch sizes
         assert stats['batch_lengths'] == [1, 2]
 
-        # ensure correct sample sizes (<= 9)
+        # ensure correct sample sizes (<= 11)
         assert stats['sample_sizes'] == [10, 8]
