@@ -16,15 +16,10 @@ local BASE_READER = {
         },
         "token_indexers": {
           "tokens": {
-            "type": "single_id",
-            "start_tokens": ["<s>"],
-            "end_tokens": ["</s>"]
+            "type": "single_id"
           },
           "token_characters": {
-            #TODO(brendanr): Should we use elmo_indexer here??????
-            "type": "characters",
-            "start_tokens": ["<s>"],
-            "end_tokens": ["</s>"]
+            "type": "elmo_characters"
           }
         },
         "max_sequence_length": 500
@@ -36,7 +31,7 @@ local BASE_ITERATOR = {
   # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
   "batch_size": 512 * NUM_GPUS,
   # TODO(brendanr): Correct order?
-  "sorting_keys": [["source", "num_tokens"], ["source", "num_token_characters"]],
+  "sorting_keys": [["source", "num_tokens"]],
   # TODO(brendanr): Is this even meaningful given laziness?
   "biggest_batch_first": true,
   # TODO(brendanr): Grok namespacing vis-a-vis  `["source", "num_tokens"]` above.
@@ -61,7 +56,7 @@ local BASE_ITERATOR = {
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
@@ -74,7 +69,7 @@ local BASE_ITERATOR = {
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
 
   # 2 small, but not trivial
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev_small/*",
 
   # TODO: Figure out which start and end characters to remove from the tokens.txt file.
@@ -171,6 +166,14 @@ local BASE_ITERATOR = {
       #,"lr": 0.01
     },
     # TODO(brendanr): Needed with transformer too?
-    "grad_norm": 10.0
+    "grad_norm": 10.0,
+    "learning_rate_scheduler": {
+      "type": "noam",
+      # See https://github.com/allenai/calypso/blob/master/calypso/train.py#L401
+      "model_size": 512,
+      # See https://github.com/allenai/calypso/blob/master/bin/train_transformer_lm1b.py#L51.
+      # TODO(brendanr): Adjust based on your sample size vis a vis the Calypso version.
+      "warmup_steps": 2000
+    }
   }
 }
