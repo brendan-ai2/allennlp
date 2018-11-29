@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Union, Iterable, Iterator, List, Optional, Tuple
+from typing import Dict, Union, Iterable, Iterator, List, Optional, Tuple, Deque
 from collections import defaultdict, deque
 import itertools
 import math
@@ -49,10 +49,11 @@ class DataIterator(Registrable):
     track_epoch : ``bool``, optional, (default = False)
         If true, each instance will get a ``MetadataField`` containing the epoch number.
     maximum_samples_per_batch : ``Tuple[str, int]``, (default = None)
-        If specified, then is a tuple (padding_key, limit) and we will
-        shrink the batch size for very long sequences such that
-        batch_size * sequence_length <= limit where sequence_length is given
-        by the padding_key.
+        If specified, then is a tuple (padding_key, limit) and we will ensure
+        that every batch is such that batch_size * sequence_length <= limit
+        where sequence_length is given by the padding_key. This is done by
+        moving excess instances to the next batch (as opposed to dividing a
+        large batch evenly) and should result in a fairly tight packing.
     """
     default_implementation = 'bucket'
 
@@ -228,15 +229,25 @@ class DataIterator(Registrable):
     def _ensure_batch_is_sufficiently_small(
             self,
             batch_instances: Iterable[Instance],
-            excess: deque) -> List[List[Instance]]:
+            excess: Deque[Instance]) -> List[List[Instance]]:
         """
-        If self._maximum_samples_per_batch is specified, then split the batch into smaller
-        sub-batches if it exceeds the maximum size.
+        If self._maximum_samples_per_batch is specified, then split the batch
+        into smaller sub-batches if it exceeds the maximum size.
 
-        Any excess passed in will be used first. When the method returns excess will have been populated with instances
-        from the end of batch_instances that do not consist of more than _maximum_samples_per_batch samples or
-        _batch_size instances. It is the caller's responsibility to output these, which may, of course, be done in part
-        with subsequent calls to this method.
+        Parameters
+        ----------
+        batch_instances : ``Iterable[Instance]``
+            A candidate batch.
+        excess : ``Deque[Instance]``
+            Instances that were not sufficient to form an entire batch
+            previously. They will be used as part of the first sub-batch. This
+            will be populated with instances from the end of batch_instances
+            that do not consist of more than self._maximum_samples_per_batch
+            samples or self._batch_size instances. It is the caller's
+            responsibility to place these in a batch too, which may, of course,
+            be done in part with subsequent calls to this method.
+
+            WARNING: Mutated in place!
         """
         if self._maximum_samples_per_batch is None:
             assert not excess
@@ -244,8 +255,8 @@ class DataIterator(Registrable):
 
         key, limit = self._maximum_samples_per_batch
 
-        batches = []
-        batch = []
+        batches: List[List[Instance]] = []
+        batch: List[Instance] = []
         padding_length = -1
 
         excess.extend(batch_instances)
