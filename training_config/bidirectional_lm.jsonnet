@@ -53,10 +53,10 @@ local BASE_ITERATOR = {
     # TODO(brendanr): Consider epochs_per_read and output_queue_size.
   } else BASE_READER,
   # All data
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
@@ -173,7 +173,9 @@ local BASE_ITERATOR = {
       "model_size": 512,
       # See https://github.com/allenai/calypso/blob/master/bin/train_transformer_lm1b.py#L51.
       # TODO(brendanr): Adjust based on your sample size vis a vis the Calypso version.
-      "warmup_steps": 2000
+      #"warmup_steps": 2000
+      # Adjusted based on relative sample size.
+      "warmup_steps": 6000
     }
   }
 }
