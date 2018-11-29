@@ -1,5 +1,4 @@
 local NUM_GPUS = 2;
-# TODO(brendanr): Can be as large as 8 on your machine.
 local NUM_THREADS = 1;
 
 local BASE_READER = {
@@ -7,10 +6,10 @@ local BASE_READER = {
         "tokenizer": {
           "type": "word",
           "word_splitter": {
-	    # The 1 Billion Word Language Model Benchmark dataset is
-	    # pre-tokenized. (Also, if you're running against a untokenized
-	    # dataset be aware that there are serialization issues with Spacy.
-	    # These come into play in the multiprocess case.)
+	        # The 1 Billion Word Language Model Benchmark dataset is
+	        # pre-tokenized. (Also, if you're running against a untokenized
+	        # dataset be aware that there are serialization issues with Spacy.
+	        # These come into play in the multiprocess case.)
             "type": "just_spaces"
           }
         },
@@ -28,19 +27,11 @@ local BASE_READER = {
 local BASE_ITERATOR = {
   "type": "bucket",
   "max_instances_in_memory": 16384 * NUM_GPUS,
-  # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
+  # Larger than we really desire for a batch. Since we set
+  # maximum_samples_per_batch below we will pack approximately that many
+  # samples in every batch.
   "batch_size": 512 * NUM_GPUS,
-  # TODO(brendanr): Correct order?
   "sorting_keys": [["source", "num_tokens"]],
-  # TODO(brendanr): Is this even meaningful given laziness?
-  "biggest_batch_first": true,
-  # TODO(brendanr): Grok namespacing vis-a-vis  `["source", "num_tokens"]` above.
-  # Notes:
-  # - NUM_GPUS * 3k leaves GPUs underutilized.
-  # - Same with 6k.
-  # - 12k OOMs. (Maybe having a limit on characters per token would help here?
-  # - Hmmm, 9k OOMs too. Maybe we have a leak?
-  # - 6k OOMs on V100. LEAK?
   "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 1000]
 };
 
@@ -50,41 +41,30 @@ local BASE_ITERATOR = {
     "base_reader": BASE_READER,
     "num_workers": NUM_THREADS,
     "output_queue_size": 1000
-    # TODO(brendanr): Consider epochs_per_read.
   },
-  # All data
+  # Note: We don't set a validation_data_path because the softmax is only
+  # sampled during training. Not sampling on GPUs results in a certain OOM
+  # given our large vocabulary. We'll need to evaluate against the test set
+  # (when we'll want a full softmax) with the CPU.
   "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
-  # 2 shards for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
-  # 1 shard for training
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/news.en-00001-of-00100",
-  # Trivial amount sharded
-  #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
-  #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/*",
-  # Trivial amount sharded -- 2 shards for training
-  #"train_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard[0-1]",
-  #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
-
-  # 2 small, but not trivial
   #"train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
-  #"validation_data_path": "/home/brendanr/workbenches/calypso/dev_small/*",
 
-  # TODO: Figure out which start and end characters to remove from the tokens.txt file.
   "vocabulary": {
-      #"tokens_to_add": {
-      #    "tokens": ["<s>", "</s>"],
-      #    "token_characters": ["<>/s"]
-      #},
-      #"min_count": {"source_tokens": 3},
+      # Use a prespecified vocabulary for efficiency.
       "directory_path": "/home/brendanr/workbenches/calypso/vocabulary"
+      # Plausible config for generating the vocabulary.
+      #"tokens_to_add": {
+      #    "tokens": ["<S>", "</S>"],
+      #    "token_characters": ["<>/S"]
+      #},
+      #"min_count": {"source_tokens": 3}
   },
   "model": {
     "type": "bidirectional-language-model",
     "num_samples": 8192,
     "sparse_embeddings": true,
+    # TODO(brendanr): Verify that this is unused and remove.
     "initializer": [
           [".*tag_projection_layer.*weight", {"type": "xavier_uniform"}], # Initialise the final projection before the softmax.
           [".*tag_projection_layer.*bias", {"type": "zero"}],
@@ -104,7 +84,7 @@ local BASE_ITERATOR = {
             "type": "character_encoding",
             "embedding": {
                 "num_embeddings": 262,
-                # TODO(brendanr): When used with an LSTM contextualizer this is 32. Is that okay?
+                # TODO(brendanr): When used with an LSTM contextualizer this is 32. Okay at 16?
                 "embedding_dim": 16
             },
             "encoder": {
@@ -122,8 +102,6 @@ local BASE_ITERATOR = {
                 "num_highway": 2,
                 "projection_dim": 512,
                 "projection_location": "after_highway",
-                # TODO(brendanr): Implement
-                #"max_characters_per_token": 50,
                 "do_layer_norm": true
             }
         }
@@ -131,39 +109,32 @@ local BASE_ITERATOR = {
     },
     # Applies to the contextualized embeddings.
     "dropout": 0.1,
-    # TODO(brendanr): Flesh out. Use Calypso.
-    # TODO(brendanr): For any LSTM use Mark's special initialization tricks. Maybe not for transformer.
     "contextualizer": {
         "type": "transformer",
         "input_dim": 512,
         "hidden_dim": 2048,
         "num_layers": 6,
         # TODO(brendanr): Does this need to be used?
-        #"dropout": ???,
+        #"dropout": 0.1,
         # TODO(brendanr): Verify this dropout is applied in the same place as Calypso.
         "input_dropout": 0.1
     }
   },
-  #"iterator": BASE_ITERATOR,
-  # Note: The multiprocess iterator doesn't make sense with the ShardedDataset model.
-  # NOTE: OR DOES IT?
   "iterator": {
     "type": "multiprocess",
     "base_iterator": BASE_ITERATOR,
     "num_workers": NUM_THREADS,
-    # Note: Requires a higher ulimit for some reason. I used `ulimit -n 4096`. Could use tuning.
-    # TODO(brendanr): Why is this necessary?
+    # Note: It seems like this requires a higher ulimit. Why is unclear. I used `ulimit -n 4096`. Could use tuning.
     "output_queue_size": 500
   },
   "trainer": {
     "num_epochs": 10,
     "cuda_device" : if NUM_GPUS > 1 then std.range(0, NUM_GPUS - 1) else 0,
     "optimizer": {
-      # TODO(brendanr): Use the dense_sparse_adam optimizer.
-      # The gradient accumulators in adam for the running stdev and mean for the words that we didn't use are going to drop to 0 if we don't do this, because we would still decay the values to zero, even when we don't use them.
+      # The gradient accumulators in Adam for the running stdev and mean for
+      # words not used in the sampled softmax would be decayed to zero with the
+      # standard "adam" optimizer.
       "type": "dense_sparse_adam"
-      # TOO BIG???
-      #,"lr": 0.01
     },
     # TODO(brendanr): Needed with transformer too?
     #"grad_norm": 10.0,
@@ -172,9 +143,7 @@ local BASE_ITERATOR = {
       # See https://github.com/allenai/calypso/blob/master/calypso/train.py#L401
       "model_size": 512,
       # See https://github.com/allenai/calypso/blob/master/bin/train_transformer_lm1b.py#L51.
-      # TODO(brendanr): Adjust based on your sample size vis a vis the Calypso version.
-      #"warmup_steps": 2000
-      # Adjusted based on relative sample size.
+      # Adjusted based on our sample size relative to Calypso's.
       "warmup_steps": 6000
     }
   }
