@@ -107,6 +107,8 @@ local BASE_ITERATOR = {
         }
       }
     },
+    # TODO(brendanr): Consider the following.
+    #remove_bos_eos: true,
     # Applies to the contextualized embeddings.
     "dropout": 0.1,
     "contextualizer": {

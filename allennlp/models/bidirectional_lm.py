@@ -162,12 +162,10 @@ class BidirectionalLanguageModel(Model):
             # we need to subtract 1 to undo the padding id since the softmax
             # does not include a padding dimension
 
-            # GIVEN THIS: Maybe we need to remove tokens from non_padded_namespaces???
-
-            # shape (batch_size * max_sequence_length, )
+            # shape (batch_size * timesteps, )
             non_masked_targets = targets.masked_select(mask) - 1
 
-            # shape (batch_size * max_sequence_length, embedding_dim)
+            # shape (batch_size * timesteps, embedding_dim)
             non_masked_embedding = embedding.masked_select(
                     mask.unsqueeze(-1)
             ).view(-1, self._forward_dim)
@@ -238,7 +236,7 @@ class BidirectionalLanguageModel(Model):
         forward_targets[:, 0:-1] = token_ids[:, 1:]
         backward_targets[:, 1:] = token_ids[:, 0:-1]
 
-        # shape (batch_size, sentence_length + 2, embedding_size)
+        # shape (batch_size, timesteps + 2, embedding_size)
         embeddings = self._text_field_embedder(source)
 
         # Apply LayerNorm if appropriate.

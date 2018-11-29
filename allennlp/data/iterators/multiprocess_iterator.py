@@ -28,11 +28,7 @@ def _create_tensor_dicts(input_queue: Queue,
             yield instance
             instance = input_queue.get()
 
-    count = 0 # REMOVEME
     for tensor_dict in iterator(instances(), num_epochs=1, shuffle=shuffle):
-        count += 1 # REMOVEME
-        if count % 20 == 0: # REMOVEME
-            print(f"\napproximate output_queue size: {output_queue.qsize()}") # REMOVEME
         output_queue.put(tensor_dict)
 
     output_queue.put(index)
@@ -137,7 +133,6 @@ class MultiprocessIterator(DataIterator):
 
         for process in self.processes:
             process.join()
-        print("DONE IN MULTIPROCESS ITERATOR")
         self.processes.clear()
 
         if self.queuer is not None:

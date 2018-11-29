@@ -148,4 +148,3 @@ class MultiprocessDatasetReader(DatasetReader):
         for process in processes:
             process.join()
         processes.clear()
-        print("DONE IN MULTIPROCESS READER")
