@@ -1,6 +1,6 @@
 local NUM_GPUS = 2;
 # TODO(brendanr): Can be as large as 8 on your machine.
-local NUM_THREADS = 8;
+local NUM_THREADS = 1;
 
 local BASE_READER = {
         "type": "simple_language_modeling",
@@ -45,13 +45,13 @@ local BASE_ITERATOR = {
 };
 
 {
-  "dataset_reader": if NUM_THREADS > 1 then {
+  "dataset_reader": {
     "type": "multiprocess",
     "base_reader": BASE_READER,
     "num_workers": NUM_THREADS,
     "output_queue_size": 1000
-    # TODO(brendanr): Consider epochs_per_read and output_queue_size.
-  } else BASE_READER,
+    # TODO(brendanr): Consider epochs_per_read.
+  },
   # All data
   "train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
