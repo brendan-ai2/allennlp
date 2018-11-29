@@ -27,7 +27,7 @@ local BASE_READER = {
 
 local BASE_ITERATOR = {
   "type": "bucket",
-  "max_instances_in_memory": 4096 * NUM_GPUS,
+  "max_instances_in_memory": 16384 * NUM_GPUS,
   # TODO(brendanr): How does this interact with maximum_samples_per_batch below?
   "batch_size": 512 * NUM_GPUS,
   # TODO(brendanr): Correct order?
@@ -41,7 +41,7 @@ local BASE_ITERATOR = {
   # - 12k OOMs. (Maybe having a limit on characters per token would help here?
   # - Hmmm, 9k OOMs too. Maybe we have a leak?
   # - 6k OOMs on V100. LEAK?
-  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 2000]
+  "maximum_samples_per_batch": ["num_tokens", NUM_GPUS * 1000]
 };
 
 {
@@ -56,7 +56,7 @@ local BASE_ITERATOR = {
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 2 shards for training
-  #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
+  "train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-0000[2-3]*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev/*",
   # 1 shard for training
   #"train_data_path": "/home/brendanr/workbenches/calypso/train/news.en-00002-of-00100",
@@ -69,7 +69,7 @@ local BASE_ITERATOR = {
   #"validation_data_path": "/home/brendanr/repos/brendanr/allennlp/allennlp/tests/fixtures/language_modeling/shards/shard2",
 
   # 2 small, but not trivial
-  "train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
+  #"train_data_path": "/home/brendanr/workbenches/calypso/train_small/*",
   #"validation_data_path": "/home/brendanr/workbenches/calypso/dev_small/*",
 
   # TODO: Figure out which start and end characters to remove from the tokens.txt file.
@@ -166,7 +166,7 @@ local BASE_ITERATOR = {
       #,"lr": 0.01
     },
     # TODO(brendanr): Needed with transformer too?
-    "grad_norm": 10.0,
+    #"grad_norm": 10.0,
     "learning_rate_scheduler": {
       "type": "noam",
       # See https://github.com/allenai/calypso/blob/master/calypso/train.py#L401
