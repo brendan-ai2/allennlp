@@ -97,7 +97,7 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         else:
             self._layer_norm = lambda tensor: tensor
 
-    def forward(self, inputs: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         Compute context insensitive token embeddings for ELMo representations.
 
@@ -105,7 +105,10 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         ----------
         inputs:
             Shape ``(batch_size, num_characters, embedding_dim)``
-            of character embeddings representing the current batch.
+            Character embeddings representing the current batch.
+        mask:
+            Shape ``(batch_size, num_characters)``
+            Currently unused. The mask for characters is implicit. See TokenCharactersEncoder.forward.
 
         Returns
         -------
