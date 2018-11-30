@@ -97,7 +97,7 @@ class CnnHighwayEncoder(Seq2VecEncoder):
         else:
             self._layer_norm = lambda tensor: tensor
 
-    def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> Dict[str, torch.Tensor]: # pylint: disable=unused-argument
         """
         Compute context insensitive token embeddings for ELMo representations.
 

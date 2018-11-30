@@ -505,7 +505,8 @@ class Trainer(Registrable):
                 cur_batch = self._get_batch_size(batch)
                 cumulative_batch_size += cur_batch
                 if (batches_this_epoch - 1) % self._log_batch_size_period == 0:
-                    logger.info(f"cur batch size: {cur_batch} average size: {cumulative_batch_size/batches_this_epoch}")
+                    average = cumulative_batch_size/batches_this_epoch
+                    logger.info(f"cur batch size: {cur_batch} average size: {average}")
             self._batch_num_total += 1
             batch_num_total = self._batch_num_total
 
