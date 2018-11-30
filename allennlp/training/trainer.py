@@ -461,7 +461,7 @@ class Trainer(Registrable):
         returns 0 otherwise.
         """
         if isinstance(batch, torch.Tensor):
-            return batch.size()[0]
+            return batch.size()[0] # type: ignore
         elif isinstance(batch, Dict):
             return self._get_batch_size(next(iter(batch.values())))
         else:

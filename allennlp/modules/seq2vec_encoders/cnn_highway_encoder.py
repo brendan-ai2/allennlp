@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from allennlp.common.checks import ConfigurationError
-from allennlp.modules import LayerNorm
+from allennlp.modules.layer_norm import LayerNorm
 from allennlp.modules.highway import Highway
 from allennlp.modules.seq2vec_encoders.seq2vec_encoder import Seq2VecEncoder
 
