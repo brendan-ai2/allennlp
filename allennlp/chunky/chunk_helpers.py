@@ -48,5 +48,8 @@ def garble_helper(chunks, index, direction):
         direction = 1
 
     offset = 1 - direction * 2
-    chunks[index] = grow(chunks[index])
-    chunks[index + offset] = shrink(chunks[index + offset])
+
+    # Never grow the O chunk. B-O, etc. aren't in the vocab.
+    if chunks[index][0][2:] != 'O':
+        chunks[index] = grow(chunks[index])
+        chunks[index + offset] = shrink(chunks[index + offset])
