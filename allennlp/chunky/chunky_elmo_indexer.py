@@ -1,10 +1,14 @@
+import itertools
 import json
 import logging
 from typing import Dict, List
+
+import numpy as np
 import torch
 
 from overrides import overrides
 
+from allennlp.chunky.chunk_helpers import garble, get_chunks
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.util import pad_sequence_to_length, prepare_environment
 from allennlp.data.tokenizers.token import Token
@@ -36,13 +40,15 @@ class ChunkyElmoIndexer(TokenIndexer[List[int]]):
                  remove_dropout: bool = False,
                  bos_token: str = '<S>',
                  eos_token: str = '</S>',
-                 namespace: str = 'chunky_elmo') -> None:
+                 namespace: str = 'chunky_elmo',
+                 garble_rate: float = 0.0) -> None:
         self._namespace = namespace
         self._max_span_width = max_span_width
+        self._garble_rate = garble_rate
 
         # First initialize the chunker.
         if preprocessed_chunk_file is not None:
-            self.chunks_dict: Dict(str, List[str]) = {}
+            self.chunks_dict: Dict[str, List[str]] = {}
             self.read_predicted_chunks(preprocessed_chunk_file)
         else:
             self.chunks_dict = None
@@ -142,10 +148,15 @@ class ChunkyElmoIndexer(TokenIndexer[List[int]]):
         """
         Logic from SegmentalConll2000DatasetReader
         """
-        # Add BOS-EOS tags
-        chunk_tags_bos_eos = ['O'] + chunk_tags + ['O']
+        chunk_tags = ['U-O' if tag == 'O' else tag for tag in chunk_tags]
 
-        chunk_tags = ['U-O' if tag == 'O' else tag for tag in chunk_tags_bos_eos]
+        if np.random.uniform() < self._garble_rate:
+            chunks = get_chunks(chunk_tags)
+            garble(chunks)
+            chunk_tags = itertools.chain.from_iterable(chunks)
+
+        # Add BOS-EOS tags
+        chunk_tags = ['U-O'] + chunk_tags + ['U-O']
 
         instance_fields = {}
         seg_starts = []
