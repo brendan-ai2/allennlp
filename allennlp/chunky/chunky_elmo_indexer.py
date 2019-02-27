@@ -153,7 +153,7 @@ class ChunkyElmoIndexer(TokenIndexer[List[int]]):
         if np.random.uniform() < self._garble_rate:
             chunks = get_chunks(chunk_tags)
             garble(chunks)
-            chunk_tags = itertools.chain.from_iterable(chunks)
+            chunk_tags = list(itertools.chain.from_iterable(chunks))
 
         # Add BOS-EOS tags
         chunk_tags = ['U-O'] + chunk_tags + ['U-O']
