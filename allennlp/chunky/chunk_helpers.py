@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 
 def get_chunks(tags):
@@ -13,7 +15,6 @@ def get_chunks(tags):
 
     return chunks
 
-chunks = ['U-O', 'U-NP', 'U-VP', 'B-NP', 'I-NP', 'L-NP', 'U-PP', 'B-NP', 'L-NP', 'U-ADVP', 'U-SBAR', 'B-NP', 'L-NP', 'U-NP', 'U-VP', 'U-ADJP', 'U-PP', 'U-O', 'U-O']
 
 def make(size, chunk_type):
     if size == 0:
@@ -33,13 +34,19 @@ def shrink(chunk):
     assert chunk_len > 0
     return make(chunk_len - 1, chunk[0][2:])
 
-def garble(chunks):
-    if len(chunks) < 2:
-        return chunks
+def garble(tags):
+    chunks = get_chunks(tags)
+    if len(chunks) >= 2:
+        index = np.random.randint(0, len(chunks))
+        direction = np.random.randint(0, 2)
+        garble_helper(chunks, index, direction)
 
-    index = np.random.randint(0, len(chunks))
-    direction = np.random.randint(0, 2)
-    return garble_helper(chunks, index, direction)
+    new_tags = list(itertools.chain.from_iterable(chunks))
+    new_chunks = get_chunks(new_tags)
+    index2 = np.random.randint(0, len(new_chunks))
+    switch_tag(new_chunks, index2)
+
+    return list(itertools.chain.from_iterable(new_chunks))
 
 # TO INVESTIGATE VOCAB BUGS:
 #In [1]: okay_tags = ["U-O", "B-NP", "L-NP", "I-NP", "U-NP", "U-PP", "U-VP", "B-VP", "L-VP", "I-VP", "U-ADVP", "U-SBAR", "U-ADJP", "U-PRT", "B-ADJP", "L-ADJP", "B-ADVP", "L-ADVP", "B-PP", "L-PP", "I-ADJP", "B-SBAR", "
@@ -72,3 +79,18 @@ def garble_helper(chunks, index, direction):
     if grow_type != 'O' and grow_type != 'LST' and (shrink_type != "UCP" or len(chunks[index + offset]) > 2):
         chunks[index] = grow(chunks[index])
         chunks[index + offset] = shrink(chunks[index + offset])
+
+# Tags that can be all sizes.
+SAFE_TAGS = ['NP', 'PP', 'VP', 'ADVP', 'SBAR', 'ADJP', 'PRT', 'CONJP', 'INTJ']
+NUM = len(SAFE_TAGS)
+
+def switch_tag(chunks, index):
+    chunk = chunks[index]
+    type = chunk[0][2:]
+    new_type = type
+
+    while new_type == type:
+        new_type = SAFE_TAGS[np.random.randint(0, NUM)]
+
+    chunks[index] = make(len(chunk), new_type)
+
