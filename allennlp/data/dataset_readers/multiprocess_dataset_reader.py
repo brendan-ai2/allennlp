@@ -2,7 +2,7 @@ import glob
 import logging
 import os
 from queue import Empty
-from typing import List, Iterable, Iterator, Optional
+from typing import List, Iterable, Iterator, Optional, Any
 
 import numpy as np
 from torch.multiprocessing import Process, Queue, Value, log_to_stderr
@@ -69,6 +69,35 @@ def _worker(reader: DatasetReader,
             with num_inflight_items.get_lock():
                 num_inflight_items.value += 1
             output_queue.put(instance)
+
+def _worker2(reader: DatasetReader,
+             input_queue: Queue,
+             output_queue: Queue,
+             iterator: Any,
+             shuffle: bool,
+             worker_id: int
+             ) -> None:
+    """
+    A worker that pulls filenames off the input queue, uses the dataset reader
+    to read them, and places the generated instances on the output queue.  When
+    there are no filenames left on the input queue, it decrements
+    num_active_workers to signal completion.
+    """
+    logger.info(f"Reader worker: {worker_id} PID: {os.getpid()}")
+    # Keep going until you get a file_path that's None.
+    while True:
+        file_path = input_queue.get()
+        if file_path is None:
+            output_queue.put(worker_id)
+            output_queue.join()
+            logger.info(f"Reader worker {worker_id} finished")
+            break
+
+        logger.info(f"reading instances from {file_path}")
+        instances = reader.read(file_path)
+        for tensor_dict in iterator(instances, num_epochs=1, shuffle=shuffle):
+            output_queue.put(tensor_dict)
+
 
 
 class QIterable(Iterable[Instance]):
@@ -142,6 +171,37 @@ class QIterable(Iterable[Instance]):
             self.processes.append(process)
 
     def join(self) -> None:
+        for process in self.processes:
+            process.join()
+        self.processes.clear()
+
+    def fast(self, output_queue, iterator, shuffle) -> None:
+        shards = glob.glob(self.file_path)
+        # Ensure a consistent order before shuffling for testing.
+        shards.sort()
+        num_shards = len(shards)
+
+        # If we want multiple epochs per read, put shards in the queue multiple times.
+        self.input_queue = Queue(num_shards * self.epochs_per_read + self.num_workers)
+        for _ in range(self.epochs_per_read):
+            np.random.shuffle(shards)
+            for shard in shards:
+                self.input_queue.put(shard)
+
+        # Then put a None per worker to signify no more files.
+        for _ in range(self.num_workers):
+            self.input_queue.put(None)
+
+        assert not self.processes, "Process list non-empty! You must call QIterable.join() before restarting."
+        for worker_id in range(self.num_workers):
+            # NOT SELF.OUTPUT_QUEUE
+            args = (self.reader, self.input_queue, output_queue, iterator, shuffle, worker_id)
+            process = Process(target=_worker2, args=args)
+            logger.info(f"starting worker {worker_id}")
+            process.start()
+            self.processes.append(process)
+
+    def fast_join(self) -> None:
         for process in self.processes:
             process.join()
         self.processes.clear()

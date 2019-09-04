@@ -211,6 +211,29 @@ class MultiprocessIterator(DataIterator):
 
             qiterable.join()
 
+    def _call_with_qiterable2(self,
+                             qiterable: QIterable,
+                             num_epochs: int,
+                             shuffle: bool) -> Iterator[TensorDict]:
+        # JoinableQueue needed here as sharing tensors across processes
+        # requires that the creating tensor not exit prematurely.
+        output_queue = JoinableQueue(self.output_queue_size)
+
+        for _ in range(num_epochs):
+            qiterable.fast(output_queue, self.iterator, shuffle)
+
+            num_finished = 0
+            while num_finished < qiterable.num_workers:
+                item = output_queue.get()
+                output_queue.task_done()
+                if isinstance(item, int):
+                    num_finished += 1
+                    logger.info(f"worker {item} finished ({num_finished} / {self.num_workers})")
+                else:
+                    yield item
+
+            qiterable.fast_join()
+
     def __call__(self,
                  instances: Iterable[Instance],
                  num_epochs: int = None,
@@ -222,7 +245,7 @@ class MultiprocessIterator(DataIterator):
             raise ConfigurationError("Multiprocess Iterator must be run for a fixed number of epochs")
 
         if isinstance(instances, QIterable):
-            return self._call_with_qiterable(instances, num_epochs, shuffle)
+            return self._call_with_qiterable2(instances, num_epochs, shuffle)
         else:
             return self._call_with_instances(instances, num_epochs, shuffle)
 
